@@ -24,5 +24,16 @@
   ],
   "agora_unique_symbols": 955,
   "null_policy": "100x label permutations; primary null reported as mean permutation AUROC",
-  "batch_harmonization": "ComBat transductive sensitivity arm on stacked train+test features (no labels); primary leakage-safe claims use non-ComBat arms"
+  "batch_harmonization": "ComBat transductive sensitivity arm on stacked train+test features (no labels); primary leakage-safe claims use non-ComBat arms",
+  "generated_outputs": [
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/metrics/open_phaseA_main_results.csv",
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/metrics/open_phaseA_predictions.csv",
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/stats/open_phaseA_null_distribution.csv",
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/stats/open_phaseA_auroc_ci.csv",
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/stats/open_phaseA_paired_tests.csv",
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/stats/open_phaseA_model_family_sensitivity.csv",
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/stats/open_phaseA_null_stability_de1000_perm1000.csv",
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/data/ampad_open_nominated_targets.csv",
+    "/Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track/outputs/tables/ampad_open_subset_summary.csv"
+  ]
 }
