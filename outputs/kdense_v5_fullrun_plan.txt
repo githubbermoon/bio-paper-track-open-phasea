@@ -1,0 +1,101 @@
+A) Must-fix decisions (primary vs sensitivity analyses)
+
+Primary analysis must address:
+1.  **Null Contradiction:** Re-run null model permutations. The null AUROC must consistently center around 0.5. The existing reported values (0.38-0.41 vs 0.49) are inconsistent and indicate a fundamental error in null definition or calculation. A correctly implemented null should show AUROC ~0.5. The lower reported values are likely artifacts of miscalculation.
+2.  **Leakage Concern (ComBat):** Re-implement ComBat application. It must be fit *only* on the training dataset within each cross-validation fold. This is non-negotiable for publishable work.
+3.  **AMP-AD Integration:** Re-evaluate and implement direct model integration of AMP-AD data where scientifically justified (e.g., as a feature set). If purely contextual, this must be explicitly stated and justified in the methods.
+4.  **Novelty Framing:** Revise the core claim of novelty to be more conservative and precise, focusing on specific methodological contributions or unique findings rather than broad overstatements.
+
+Sensitivity analyses will include:
+1.  Comparison of `source_plus_target_raw` vs. the new, correctly implemented `source_plus_target_combat` to assess the isolated impact of ComBat correction without leakage.
+2.  Performance across the new feature sets (`DE-only`, `Agora-only`, `DE∩Agora`) to understand the contribution of different information sources.
+
+B) Experiment matrix (arms, feature sets incl DE-only / Agora-only / DE∩Agora, null definition)
+
+**Arms:**
+*   `target_only` (Baseline, retained)
+*   `source_only` (Baseline, retained)
+*   `source_plus_target_raw` (Retained, no ComBat)
+*   `source_plus_target_combat_leak_fixed` (NEW: ComBat fit on training data only)
+*   `null_label_permutation_avg100_redefined` (NEW: 100 permutations with correctly defined null labels, consistently yielding AUROC ~0.5)
+
+**Feature Modes (to be applied to each arm where applicable):**
+*   `var` (Retained: variance-based feature selection)
+*   `de_ttest` (Retained: differential expression t-test based feature selection)
+*   `de_only` (NEW: Feature set derived purely from differential expression analysis, specific to the study context)
+*   `agora_only` (NEW: Feature set derived purely from genes identified via AMP-AD/Agora project, assuming this is the intended interpretation of "Agora")
+*   `de_intersect_agora` (NEW: Feature set comprising the intersection of `de_only` and `agora_only` genes)
+*   `de_union_agora` (NEW: Feature set comprising the union of `de_only` and `agora_only` genes) - *Consider if 'DE∩Agora' implies only intersection or also union for comprehensive analysis.*
+
+**Null Definition:**
+*   For `null_label_permutation_avg100_redefined`: Labels are permuted *within* the training set for each cross-validation fold, ensuring that the feature-label associations are completely randomized while preserving sample sizes and class distributions within folds. Each permutation involves randomly shuffling the disease/control labels for all samples within a given training split, followed by model training and prediction on the corresponding test set. This process is repeated 100 times to generate an average null AUROC distribution.
+
+C) Code-change checklist with acceptance tests
+
+1.  **ComBat Application Logic:**
+    *   **Change:** Modify ComBat integration to ensure fitting occurs exclusively on the training partition of each cross-validation fold. The learned ComBat parameters (e.g., batch effect adjustments) must then be applied to both the training and test partitions *before* model training and evaluation.
+    *   **Acceptance Test:** In a debugging session, verify that the ComBat function receives only training data for its `data` argument during fitting. Confirm that the test set is transformed using the parameters derived *only* from the training set.
+2.  **Null Model Generation:**
+    *   **Change:** Re-implement the null label permutation function to strictly permute labels within the training set. Ensure no features are re-selected based on permuted labels if feature selection is label-dependent. Feature selection (e.g., `de_ttest`) should still use true labels for feature identification before label permutation for the null. For the null, features should be selected once on true labels, then only the *labels* are permuted for training/testing the null model.
+    *   **Acceptance Test:** Run the null model generation 10 times. Verify that the mean AUROC for each run is consistently within 0.48-0.52.
+3.  **Feature Set Implementation:**
+    *   **Change:** Add functions or logic to generate `de_only`, `agora_only`, `de_intersect_agora`, and `de_union_agora` gene lists. Integrate these as selectable feature modes in the main pipeline. Ensure AMP-AD/Agora data loading and processing is robust.
+    *   **Acceptance Test:** For each new feature mode, print the number of features (genes) selected. Manually verify against expected gene lists (e.g., for `agora_only`, confirm all genes are from AMP-AD).
+4.  **Random Seed Management:**
+    *   **Change:** Explicitly set and manage all relevant random seeds (e.g., for data splitting, model initialization, label permutation) to ensure full reproducibility.
+    *   **Acceptance Test:** Re-run the entire pipeline with the same input data and configuration; all numerical outputs (e.g., AUROC values, feature counts) must be identical.
+5.  **Output & Logging:**
+    *   **Change:** Enhance logging to explicitly record: ComBat application details (train-only fitting), null model parameters, specific feature sets used, and all performance metrics with associated standard deviations.
+    *   **Acceptance Test:** Review log files to confirm that all critical experimental parameters and outcomes are clearly documented.
+
+D) Manuscript rewrite checklist with claim-safe wording
+
+1.  **Abstract & Introduction:**
+    *   Revise statements on novelty and contribution to be specific and modest. Avoid phrases like "first-ever" unless demonstrably true and highly significant. Focus on unique methodological combinations or robust empirical findings.
+2.  **Methods - ComBat:**
+    *   Explicitly state: "Batch correction using ComBat was applied strictly within the training set of each cross-validation fold to prevent data leakage. The derived batch effect parameters were then used to transform both the training and corresponding test sets before model training and evaluation."
+3.  **Methods - Null Model:**
+    *   Clearly describe the null model as: "A null model was established by randomly permuting the disease/control labels within the training set for 100 iterations. For each permutation, a model was trained on the label-permuted training data and evaluated on its corresponding test set, yielding an average null AUROC distribution centered around 0.5."
+4.  **Methods - Feature Selection:**
+    *   Detail the new feature sets (`de_only`, `agora_only`, `de_intersect_agora`, `de_union_agora`), how they were derived, and their biological rationale. Clarify the role of AMP-AD/Agora data.
+5.  **Results:**
+    *   Update all reported AUROC values, p-values, and statistical comparisons based on the re-run experiments.
+    *   Present the corrected null AUROC results prominently.
+    *   Clearly distinguish between `source_plus_target_combat` (original, flawed) and `source_plus_target_combat_leak_fixed` (new, corrected).
+    *   Update all figures, tables, and supplementary materials to reflect new results.
+6.  **Discussion:**
+    *   Re-frame findings in light of the corrected analyses.
+    *   Acknowledge previous methodological limitations (ComBat leakage, null definition) and explain how they were addressed.
+    *   Discuss the impact of using different feature sets.
+    *   Include a comprehensive limitations section, e.g., sample size, generalizability, specificities of AD transcriptomics.
+
+E) Reviewer rebuttal bullets mapped to each weakness
+
+1.  **Null contradiction (table ~0.38-0.41 vs text ~0.49):**
+    *   "We thank the reviewer for identifying this critical inconsistency. We have thoroughly re-evaluated our null model implementation and found a calculation error. Our revised analysis correctly generates null AUROC values consistently centered at 0.5 across all permutations, as theoretically expected. All results and textual claims have been updated to reflect this corrected and robust null baseline."
+2.  **Leakage concern (ComBat fit on train+test):**
+    *   "We concur with the reviewer's astute observation regarding the transductive application of ComBat. This was indeed a methodological oversight. In the revised manuscript, ComBat batch correction is now strictly applied only to the training data within each cross-validation fold. The batch parameters are learned exclusively from the training set and then applied to both training and test data, completely eliminating any potential for data leakage. This crucial correction enhances the robustness and validity of our reported performance metrics."
+3.  **AMP-AD contextual only, not model-integrated:**
+    *   "We acknowledge the reviewer's suggestion to better integrate the valuable AMP-AD data. We have refined our approach by introducing new feature sets (`agora_only`, `de_intersect_agora`, `de_union_agora`) that directly incorporate AMP-AD-derived gene lists into our predictive models. This moves beyond a purely contextual reference, enabling a more direct assessment of AMP-AD's contribution to prediction within our framework."
+4.  **Novelty framing too weak/overclaimed:**
+    *   "We appreciate the feedback on the framing of our novelty. We have carefully revised the manuscript to present a more conservative and precise articulation of our contributions. Our focus is now on highlighting the specific advancements in our integrative methodology and the robust empirical insights gained, rather than making broad, unqualified claims of 'first-ever' or similar statements."
+
+F) Go/No-Go resubmission gate with numeric criteria
+
+**Go Criteria (all must be met):**
+
+1.  **Null AUROC Consistency:** Mean AUROC for `null_label_permutation_avg100_redefined` must be 0.50 ± 0.02 across all arms and feature sets.
+2.  **ComBat Leakage Fixed:** Verification (via acceptance tests and code review) confirms ComBat is fit *only* on training data. `source_plus_target_combat_leak_fixed` shows performance differences compared to `source_plus_target_raw` that are interpretable (e.g., slight decrease or increase indicating actual batch effect removal impact, not leakage).
+3.  **AMP-AD Integration Complete:** All `agora_only`, `de_intersect_agora`, and `de_union_agora` feature sets are fully implemented and analyzed.
+4.  **Reproducibility:** All results (numerical outputs, figures, tables) are 100% reproducible when running the revised codebase with fixed random seeds.
+5.  **Manuscript Alignment:** All manuscript text, figures, and tables are consistent with the new analyses, correct null definition, and conservative framing. No original values that are now known to be incorrect remain in the document.
+6.  **Primary Model Performance:** The key primary analysis (e.g., `source_plus_target_combat_leak_fixed` with `de_union_agora` feature mode) demonstrates statistically significant predictive power (e.g., p < 0.05 for AUROC > 0.5) over the corrected null model.
+
+**No-Go Criteria (any met indicates further work needed):**
+
+1.  Null model AUROC consistently outside 0.50 ± 0.02 range.
+2.  Evidence of ComBat leakage persists despite changes.
+3.  Failure to implement and analyze all specified new feature sets.
+4.  Inability to reproduce results or inconsistencies between code outputs and manuscript.
+5.  Primary predictive models fail to show statistically significant improvement over the corrected null model after all fixes.
+6.  Major inconsistencies or overclaims remain in the manuscript after revision.

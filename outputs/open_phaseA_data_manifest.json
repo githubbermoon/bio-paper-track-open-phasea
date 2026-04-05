@@ -3,6 +3,10 @@
     "GSE63060",
     "GSE63061"
   ],
+  "platforms": {
+    "GSE63060": "GPL6947",
+    "GSE63061": "GPL10558"
+  },
   "source": "NCBI GEO series_matrix",
   "urls": {
     "GSE63060": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63060/matrix/GSE63060_series_matrix.txt.gz",
@@ -14,8 +18,11 @@
   ],
   "feature_modes": [
     "var",
-    "de_ttest"
+    "de_ttest",
+    "agora_only",
+    "de_agora_intersection"
   ],
-  "null_policy": "100x label permutations averaged at prediction level",
-  "batch_harmonization": "ComBat (pycombat) applied in source_plus_target_combat arm"
+  "agora_unique_symbols": 955,
+  "null_policy": "100x label permutations; primary null reported as mean permutation AUROC",
+  "batch_harmonization": "ComBat transductive sensitivity arm on stacked train+test features (no labels); primary leakage-safe claims use non-ComBat arms"
 }

@@ -53,10 +53,12 @@ def _safe_group_cols(df: pd.DataFrame) -> list[str]:
 def run() -> None:
     root = Path(__file__).resolve().parents[2]
     pred_path = root / "outputs/metrics/open_phaseA_predictions.csv"
+    stats_path = root / "outputs/stats/open_phaseA_stats.json"
     out_ci = root / "outputs/stats/open_phaseA_auroc_ci.csv"
     out_p = root / "outputs/stats/open_phaseA_paired_tests.csv"
 
     df = pd.read_csv(pred_path)
+    settings_stats = json.loads(stats_path.read_text(encoding="utf-8"))
 
     group_cols = _safe_group_cols(df)
     ci_rows = []
@@ -66,6 +68,9 @@ def run() -> None:
         if not isinstance(key_vals, tuple):
             key_vals = (key_vals,)
         key_map = dict(zip(group_cols, key_vals))
+
+        key = f"{key_map.get('feature_mode','')}__{key_map['source']}_to_{key_map['target']}_top{int(key_map['top_n_genes'])}"
+        setting_meta = settings_stats.get(key, {})
 
         arms = {a: x.copy() for a, x in g.groupby("arm")}
 
@@ -85,18 +90,17 @@ def run() -> None:
                 }
             )
 
-        transfer_arm = "source_plus_target_combat" if "source_plus_target_combat" in arms else (
-            "source_plus_target" if "source_plus_target" in arms else None
-        )
-        null_arm = "null_label_permutation_avg100" if "null_label_permutation_avg100" in arms else (
-            "null_label_permutation" if "null_label_permutation" in arms else None
-        )
-
         comp_defs = []
-        if transfer_arm and "target_only" in arms:
-            comp_defs.append((transfer_arm, "target_only", f"{transfer_arm}_vs_target_only"))
-        if null_arm and "target_only" in arms:
-            comp_defs.append(("target_only", null_arm, f"target_only_vs_{null_arm}"))
+        if "source_plus_target_raw" in arms and "target_only" in arms:
+            comp_defs.append(("source_plus_target_raw", "target_only", "source_plus_target_raw_vs_target_only"))
+        if "source_plus_target_combat_transductive" in arms and "target_only" in arms:
+            comp_defs.append(
+                (
+                    "source_plus_target_combat_transductive",
+                    "target_only",
+                    "source_plus_target_combat_transductive_vs_target_only",
+                )
+            )
         if "source_only" in arms and "target_only" in arms:
             comp_defs.append(("source_only", "target_only", "source_only_vs_target_only"))
 
@@ -130,9 +134,25 @@ def run() -> None:
                     "delta_auroc": float(delta_obs),
                     "ci95_lo": float(np.quantile(arr, 0.025)),
                     "ci95_hi": float(np.quantile(arr, 0.975)),
-                    "p_value": min(1.0, p_two),
+                    "p_value": min(1.0, max(1e-12, p_two)),
                 }
             )
+
+        # Target vs permutation-null comparison from explicit permutation AUROC distribution
+        if setting_meta:
+            delta_tgt_null = float(setting_meta.get("target_auroc", np.nan) - setting_meta.get("null_perm_auroc_mean", np.nan))
+            p_null = float(setting_meta.get("p_target_gt_null_perm", np.nan))
+            if np.isfinite(delta_tgt_null) and np.isfinite(p_null):
+                p_rows.append(
+                    {
+                        **key_map,
+                        "comparison": "target_only_vs_null_perm_mean",
+                        "delta_auroc": delta_tgt_null,
+                        "ci95_lo": float(np.nan),
+                        "ci95_hi": float(np.nan),
+                        "p_value": min(1.0, max(1e-12, p_null)),
+                    }
+                )
 
     p_df = pd.DataFrame(p_rows)
     sort_cols = [c for c in ["source", "target", "feature_mode", "top_n_genes", "comparison"] if c in p_df.columns]
