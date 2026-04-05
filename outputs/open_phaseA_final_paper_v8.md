@@ -122,11 +122,11 @@ This suggests a "Biological Masking" phenomenon: in certain cohorts, the primary
 ### 5.2 The Utility of BDP-FS as a Diagnostic Tool
 Beyond its role as a feature filter, BDP-FS serves as a powerful diagnostic instrument. The *direction* in which BDP-FS improves or degrades performance reveals whether batch correction is primarily compensating for technical noise (improvement expected) or masking genuine biological heterogeneity (degradation expected). 
 
-![Figure 1: BDP-FS v2 Distortion Score vs. Differential Expression. The 'Agora Shield' protects validated biological targets from technical pruning.](file:///Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/outputs/plots/bdpfs_v2_distortion_vs_de.png)
+![Figure 1: BDP-FS v2 Distortion Score vs. Differential Expression. The 'Agora Shield' protects validated biological targets from technical pruning.](outputs/plots/bdpfs_v2_distortion_vs_de.png)
 
 Visual analysis of the **BDP-FS v2 (GMM-Soft) Regularization Map** (see Figure 2) demonstrates that the adaptive $\tau_0$ anchor and continuous exponential decay function effectively protect validated biological signal from aggressive technical pruning.
 
-![Figure 2: GMM-Anchored Soft Weighting Logic. Panel A shows the 2-component GMM fit for anchor selection (τ₀). Panel B illustrates the continuous exponential weight decay function (wg).](file:///Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/outputs/plots/gmm_soft_weights.png)
+![Figure 2: GMM-Anchored Soft Weighting Logic. Panel A shows the 2-component GMM fit for anchor selection (τ₀). Panel B illustrates the continuous exponential weight decay function (wg).](outputs/plots/gmm_soft_weights.png)
 
 By identifying the "Native" component density and setting the anchor at its 95th percentile, BDP-FS ensure that genes with baseline technical variance are preserved at full weight ($w_g=1$), while highly distorted noise is exponentially suppressed but not entirely eliminated. This methodology provides a statistically more robust and "Masterpiece" solution than legacy hard-thresholding heuristics.
 
