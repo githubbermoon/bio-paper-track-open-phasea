@@ -1,0 +1,6 @@
+{
+  "ci_file": "/Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/outputs/stats/open_phaseA_auroc_ci.csv",
+  "paired_tests_file": "/Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/outputs/stats/open_phaseA_paired_tests.csv",
+  "n_ci_rows": 16,
+  "n_tests": 8
+}

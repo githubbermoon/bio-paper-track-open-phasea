@@ -1,0 +1,12 @@
+{
+  "input": "/Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/data/processed/synthetic_panel.csv",
+  "time_col": "collection_time",
+  "subject_col": "subject_id",
+  "audit": {
+    "n_rows": 10,
+    "n_train": 7,
+    "n_valid": 1,
+    "n_test": 2,
+    "subject_overlap": false
+  }
+}

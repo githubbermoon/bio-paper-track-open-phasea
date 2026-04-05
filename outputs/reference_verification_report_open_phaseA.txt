@@ -1,0 +1,46 @@
+Reference verification report for open_phaseA_final_paper.md
+Generated: 2026-04-05
+
+[1] NCBI GEO GSE63060
+- URL: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63060
+- HTTP: 200
+- Page contains accession string GSE63060: YES
+- Verdict: VERIFIED
+
+[2] NCBI GEO GSE63061
+- URL: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63061
+- HTTP: 200
+- Page contains accession string GSE63061: YES
+- Verdict: VERIFIED
+
+[3] AD Knowledge Portal Agora
+- URL: https://agora.adknowledgeportal.org/
+- HTTP: 200
+- Page reachable and identifiable as Agora portal: YES
+- Verdict: VERIFIED
+
+[4] Agora nominated genes API endpoint
+- URL: https://agora.adknowledgeportal.org/api/v1/genes/nominated
+- HTTP: 200
+- JSON endpoint reachable: YES
+- Verdict: VERIFIED
+
+[5] Efron & Tibshirani, An Introduction to the Bootstrap (1993)
+- Metadata source: OpenLibrary search API
+- Query matched exact title + author Bradley Efron
+- First publish year found: 1993
+- Verdict: VERIFIED
+
+[6] Benjamini & Hochberg (1995), FDR paper
+- Metadata source: Crossref bibliographic search API
+- Matched title: "Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing"
+- Verdict: VERIFIED
+
+[7] Marcus et al. (2007), OASIS paper, J Cogn Neurosci
+- DOI in manuscript: 10.1162/jocn.2007.19.9.1498
+- Metadata source: Crossref DOI lookup API
+- Matched title/journal/year/authors: YES
+- Note: Publisher landing page may return HTTP 403 from some environments, but DOI metadata is valid and resolved by Crossref.
+- Verdict: VERIFIED
+
+Overall verdict: No hallucinated references detected among [1]-[7].

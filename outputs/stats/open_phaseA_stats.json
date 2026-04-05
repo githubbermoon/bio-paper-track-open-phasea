@@ -1,0 +1,18 @@
+{
+  "GSE63060_to_GSE63061_top200": {
+    "delta_auroc_source_plus_target_vs_target_only": 0.12023809523809514,
+    "delta_auroc_target_only_vs_null": 0.10119047619047616
+  },
+  "GSE63061_to_GSE63060_top200": {
+    "delta_auroc_source_plus_target_vs_target_only": -0.04618768328445744,
+    "delta_auroc_target_only_vs_null": 0.4809384164222874
+  },
+  "GSE63060_to_GSE63061_top1000": {
+    "delta_auroc_source_plus_target_vs_target_only": 0.07083333333333341,
+    "delta_auroc_target_only_vs_null": 0.13988095238095222
+  },
+  "GSE63061_to_GSE63060_top1000": {
+    "delta_auroc_source_plus_target_vs_target_only": -0.009530791788856297,
+    "delta_auroc_target_only_vs_null": 0.41202346041055715
+  }
+}

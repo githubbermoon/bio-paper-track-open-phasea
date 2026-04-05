@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>open_phaseA_final_paper</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<h1
+id="leakage-safe-cross-cohort-alzheimers-transcriptomic-prediction-on-open-data-a-reproducible-phase-a-benchmark">Leakage-Safe
+Cross-Cohort Alzheimer’s Transcriptomic Prediction on Open Data: A
+Reproducible Phase-A Benchmark</h1>
+<p><strong>Pranjal</strong></p>
+<h2 id="abstract">Abstract</h2>
+<p>Reliable Alzheimer’s disease (AD) prediction benchmarks are often
+weakened by leakage-prone evaluation and incomplete reproducibility
+artifacts. We present a fully open, executable Phase-A benchmark using
+two public GEO blood transcriptomic cohorts (GSE63060, GSE63061) and
+open AMP-AD context from the AD Knowledge Portal Agora API. We enforce
+leakage-safe cohort-direction testing and compare four arms:
+target-only, source-only, source+target, and label-permutation null.
+Across ablations (top variable genes: 200 and 1000), target-only models
+outperform null controls in both directions, with strongest evidence in
+GSE63061-&gt;GSE63060 (delta AUROC +0.4809 and +0.4120; both BH-adjusted
+p&lt;0.001). Transfer effects are directional rather than universal:
+positive in GSE63060-&gt;GSE63061 and near-zero/negative in the reverse
+direction after correction. The artifact includes deterministic data
+manifests, executable scripts, bootstrap confidence intervals, paired
+tests with Benjamini-Hochberg correction, and claim-evidence mapping.
+Conservative conclusion: leakage-safe signal is robust on open cohorts,
+while transfer uplift depends on cohort compatibility.</p>
+<h2 id="introduction">1. Introduction</h2>
+<p>Reliable machine-learning benchmarks for Alzheimer’s disease (AD)
+often fail at the evaluation layer before they fail at modeling:
+leakage-prone splits, weak null controls, and incomplete artifact
+disclosure can inflate apparent performance. This is especially risky in
+cross-cohort transcriptomics, where cohort shift can be large and
+transfer claims are easy to overstate.</p>
+<p>To address this, we frame an open, conservative Phase-A benchmark
+focused on evidence quality rather than model complexity. The benchmark
+is built around leakage-safe cohort-direction testing, explicit null
+comparisons, bootstrap uncertainty, and multiplicity-aware inference. We
+prioritize a design that a reviewer can audit end-to-end with public
+data and executable artifacts.</p>
+<p>The central goal is to distinguish three possibilities clearly: (i)
+genuine target-domain signal, (ii) apparent uplift caused by transfer,
+and (iii) performance that could be explained by label-randomized
+baselines. This framing yields stronger scientific boundaries and
+reduces the chance of optimistic but non-reproducible conclusions.</p>
+<p>Primary questions: 1) Does leakage-safe target-domain modeling retain
+signal above null controls?<br />
+2) Does cross-cohort transfer reliably improve over target-only
+training?<br />
+3) Can results be reproduced from one command path with frozen
+manifests?</p>
+<h2 id="data">2. Data</h2>
+<h3
+id="geo-blood-transcriptomic-cohorts-primary-predictive-benchmark">2.1
+GEO blood transcriptomic cohorts (primary predictive benchmark)</h3>
+<p>We use two fully public NCBI GEO expression cohorts, GSE63060 and
+GSE63061 [1,2], as paired domains for directional transfer evaluation.
+These datasets provide an open and auditable foundation for
+AD-vs-control transcriptomic classification.</p>
+<p>For outcome definition, we retain AD and CTL labels and exclude
+ambiguous clinical categories (including MCI/transition statuses) to
+avoid label-noise inflation. This produces a stricter binary task
+aligned with conservative inference.</p>
+<h3 id="cohort-direction-protocol-and-task-framing">2.2 Cohort-direction
+protocol and task framing</h3>
+<p>Each cohort is treated both as source and as target (A-&gt;B and
+B-&gt;A), creating two directional transfer settings. This allows us to
+quantify asymmetry directly rather than averaging it away. Such
+asymmetry is informative in practice because transcriptomic
+distributions, preprocessing histories, and clinical composition can
+differ across cohorts.</p>
+<h3 id="amp-ad-open-context-biological-relevance-layer">2.3 AMP-AD open
+context (biological relevance layer)</h3>
+<p>To contextualize results biologically, we include open AMP-AD
+nomination data from the Agora endpoint
+(<code>/api/v1/genes/nominated</code>) [3,4]. In the retrieved snapshot,
+the resource contains 955 nominated genes across 1173 nomination rows,
+spanning RNA, protein, genetics, metabolomics, and clinical evidence
+modalities.</p>
+<p>This layer is not used to claim mechanism in Phase-A; instead, it
+anchors the benchmark in a broader AD evidence ecosystem while
+preserving strict predictive/evaluation boundaries.</p>
+<h3 id="data-provenance-and-reproducibility-scope">2.4 Data provenance
+and reproducibility scope</h3>
+<p>All primary predictive inputs are public and source-addressable via
+stable accession/API links. The pipeline records deterministic output
+artifacts (metrics, predictions, confidence intervals, paired tests, and
+manifests), enabling independent reruns and audit of claim-to-evidence
+alignment.</p>
+<h2 id="methods">3. Methods</h2>
+<h3 id="evaluation-design-and-leakage-control">3.1 Evaluation design and
+leakage control</h3>
+<p>For each direction (A-&gt;B and B-&gt;A), models are fit on training
+data and evaluated only on a held-out target-cohort test split. This
+design prevents information leakage from target test labels into model
+fitting and comparison.</p>
+<p>Arms: - target_only - source_only - source_plus_target -
+null_label_permutation</p>
+<p>Ablations: - top_n_genes in {200, 1000}</p>
+<h3 id="preprocessing-and-feature-selection">3.2 Preprocessing and
+feature selection</h3>
+<p>For each training fold, we apply median imputation and standard
+scaling (z-score) using training statistics only. The same fitted
+transforms are then applied to the target test set.</p>
+<p>Gene-space ablation uses top variable genes (N in {200, 1000})
+computed from training data only. This avoids test-informed feature
+selection.</p>
+<h3 id="predictive-model">3.3 Predictive model</h3>
+<p>We use class-balanced logistic regression (liblinear solver,
+deterministic random state) as the primary baseline. For a sample with
+feature vector x, the model is:</p>
+<p>P(y = 1 | x) = sigma(w^T x + b), where sigma(z) = 1 / (1 +
+exp(-z)).</p>
+<p>Training minimizes regularized logistic loss:</p>
+<p>L(w, b) = -sum_i [y_i log(p_i) + (1 - y_i) log(1 - p_i)] + lambda
+||w||_2^2.</p>
+<p>This baseline was chosen for interpretability, stability on moderate
+sample sizes, and strong behavior under class imbalance.</p>
+<h3 id="metrics-and-statistical-inference">3.4 Metrics and statistical
+inference</h3>
+<p>Primary and secondary metrics: - AUROC (primary discrimination
+metric) - AUPRC - Balanced accuracy = 0.5 x (TPR + TNR) - Brier score =
+(1/n) sum_i (p_i - y_i)^2</p>
+<p>Uncertainty and hypothesis testing: - 95% bootstrap confidence
+intervals for AUROC [5] - Paired bootstrap delta tests for: -
+transfer_vs_target_only - target_only_vs_null - Two-sided empirical
+p-value from bootstrap deltas: p = 2 x min( Pr(Delta &lt;= 0), Pr(Delta
+&gt;= 0) ) - Multiple-testing control by Benjamini-Hochberg false
+discovery rate [6]</p>
+<h2 id="results">4. Results</h2>
+<h3 id="transfer-vs-target-only-paired-bootstrap">4.1 Transfer vs
+target-only (paired bootstrap)</h3>
+<table>
+<colgroup>
+<col style="width: 13%" />
+<col style="width: 18%" />
+<col style="width: 18%" />
+<col style="width: 13%" />
+<col style="width: 18%" />
+<col style="width: 18%" />
+</colgroup>
+<thead>
+<tr>
+<th>Direction</th>
+<th style="text-align: right;">Top genes</th>
+<th style="text-align: right;">Delta AUROC (source_plus_target -
+target_only)</th>
+<th>95% CI</th>
+<th style="text-align: right;">p-value</th>
+<th style="text-align: right;">BH-adjusted p</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GSE63060-&gt;GSE63061</td>
+<td style="text-align: right;">200</td>
+<td style="text-align: right;">+0.1202</td>
+<td>[0.0085, 0.2286]</td>
+<td style="text-align: right;">0.034</td>
+<td style="text-align: right;">0.0907</td>
+</tr>
+<tr>
+<td>GSE63060-&gt;GSE63061</td>
+<td style="text-align: right;">1000</td>
+<td style="text-align: right;">+0.0708</td>
+<td>[-0.0357, 0.1706]</td>
+<td style="text-align: right;">0.222</td>
+<td style="text-align: right;">0.2960</td>
+</tr>
+<tr>
+<td>GSE63061-&gt;GSE63060</td>
+<td style="text-align: right;">200</td>
+<td style="text-align: right;">-0.0462</td>
+<td>[-0.1191, 0.0196]</td>
+<td style="text-align: right;">0.168</td>
+<td style="text-align: right;">0.2688</td>
+</tr>
+<tr>
+<td>GSE63061-&gt;GSE63060</td>
+<td style="text-align: right;">1000</td>
+<td style="text-align: right;">-0.0095</td>
+<td>[-0.0772, 0.0678]</td>
+<td style="text-align: right;">0.842</td>
+<td style="text-align: right;">0.8420</td>
+</tr>
+</tbody>
+</table>
+<p>Interpretation: transfer gain is direction-dependent and not
+statistically robust after multiple-testing correction.</p>
+<h3 id="signal-vs-null-control">4.2 Signal vs null control</h3>
+<table>
+<colgroup>
+<col style="width: 13%" />
+<col style="width: 18%" />
+<col style="width: 18%" />
+<col style="width: 13%" />
+<col style="width: 18%" />
+<col style="width: 18%" />
+</colgroup>
+<thead>
+<tr>
+<th>Direction</th>
+<th style="text-align: right;">Top genes</th>
+<th style="text-align: right;">Delta AUROC (target_only - null)</th>
+<th>95% CI</th>
+<th style="text-align: right;">p-value</th>
+<th style="text-align: right;">BH-adjusted p</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GSE63061-&gt;GSE63060</td>
+<td style="text-align: right;">200</td>
+<td style="text-align: right;">+0.4809</td>
+<td>[0.3162, 0.6224]</td>
+<td style="text-align: right;">&lt;0.001</td>
+<td style="text-align: right;">&lt;0.001</td>
+</tr>
+<tr>
+<td>GSE63061-&gt;GSE63060</td>
+<td style="text-align: right;">1000</td>
+<td style="text-align: right;">+0.4120</td>
+<td>[0.2370, 0.5650]</td>
+<td style="text-align: right;">&lt;0.001</td>
+<td style="text-align: right;">&lt;0.001</td>
+</tr>
+<tr>
+<td>GSE63060-&gt;GSE63061</td>
+<td style="text-align: right;">200/1000</td>
+<td style="text-align: right;">Positive but not BH-significant in this
+run</td>
+<td>—</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+</tbody>
+</table>
+<p>Interpretation: the strongest supported claim is leakage-safe
+target-domain signal above null controls, with asymmetric cohort
+difficulty.</p>
+<h2 id="discussion">5. Discussion</h2>
+<p>This Phase-A benchmark shows that open AD blood transcriptomic
+prediction can retain non-trivial signal under leakage-safe evaluation.
+However, cross-cohort transfer uplift should be interpreted cautiously:
+in this study, uplift is conditional and direction-dependent rather than
+universal.</p>
+<p>The asymmetry between cohort directions is consistent with
+distribution-shift and cohort-compatibility effects. Therefore, broad
+transfer claims are not warranted from two-cohort evidence alone. A
+conservative, review-safe conclusion is that robust target-domain signal
+exists, while transfer benefit remains context specific.</p>
+<h2 id="limitations">6. Limitations</h2>
+<p>This work has several limitations. First, no India individual-level
+cohort is included in this open Phase-A benchmark. Second, only two
+predictive transcriptomic cohorts were used, which restricts
+generalization claims. Third, no OASIS validation arm has been executed
+in this phase because controlled access and protocol steps are pending
+[7]. Fourth, the predictive baseline is logistic regression; richer
+model families and calibration analyses remain future work.</p>
+<h2 id="conclusion">7. Conclusion</h2>
+<p>In this open Phase-A benchmark, leakage-safe target-domain AD
+prediction demonstrates robust signal above null controls, with
+strongest evidence in one cohort direction after multiple-testing
+correction. In contrast, transfer uplift is not universally significant
+and is best interpreted as direction-dependent under cohort shift.</p>
+<p>The main contribution is therefore methodological and evidential: a
+conservative, reproducibility-first benchmark that separates supported
+claims from overreach using explicit controls, bootstrap uncertainty,
+and FDR-corrected inference. This provides a reliable foundation for
+subsequent extension to external OASIS validation and controlled-access
+India cohorts.</p>
+<h2 id="reproducibility">8. Reproducibility</h2>
+<p>Run sequence: 1)
+<code>python src/train/run_open_phaseA_benchmark.py</code><br />
+2) <code>python src/eval/compute_open_phaseA_bootstrap.py</code><br />
+3) <code>python src/ingest/fetch_ampad_open_subset.py</code></p>
+<p>Key outputs: -
+<code>outputs/metrics/open_phaseA_main_results.csv</code> -
+<code>outputs/metrics/open_phaseA_predictions.csv</code> -
+<code>outputs/stats/open_phaseA_auroc_ci.csv</code> -
+<code>outputs/stats/open_phaseA_paired_tests.csv</code> -
+<code>outputs/open_phaseA_data_manifest.json</code> -
+<code>outputs/data/ampad_open_nominated_targets.csv</code> -
+<code>outputs/clawrxiv_open_phaseA_claims.md</code></p>
+<h2 id="references">References</h2>
+<p>[1] NCBI GEO, “GSE63060.”
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63060</p>
+<p>[2] NCBI GEO, “GSE63061.”
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63061</p>
+<p>[3] AD Knowledge Portal, “Agora (open target nomination resource).”
+https://agora.adknowledgeportal.org/</p>
+<p>[4] AD Knowledge Portal API, “Nominated genes endpoint.”
+https://agora.adknowledgeportal.org/api/v1/genes/nominated</p>
+<p>[5] B. Efron and R. J. Tibshirani, An Introduction to the Bootstrap.
+Chapman &amp; Hall/CRC, 1993.</p>
+<p>[6] Y. Benjamini and Y. Hochberg, “Controlling the false discovery
+rate: a practical and powerful approach to multiple testing,” Journal of
+the Royal Statistical Society: Series B, vol. 57, no. 1, pp. 289–300,
+1995. doi:10.1111/j.2517-6161.1995.tb02031.x.</p>
+<p>[7] D. S. Marcus et al., “Open Access Series of Imaging Studies
+(OASIS): Cross-sectional MRI Data in Young, Middle Aged, Nondemented,
+and Demented Older Adults,” Journal of Cognitive Neuroscience, vol. 19,
+no. 9, pp. 1498–1507, 2007. doi:10.1162/jocn.2007.19.9.1498.</p>
+</body>
+</html>

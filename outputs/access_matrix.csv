@@ -1,0 +1,7 @@
+dataset,region_anchor,access_type,application_required,account_portal,primary_url,status_now,owner,approval_eta_days,allowed_modalities_known,data_use_constraints,download_path_confirmed,repro_risk,notes
+LASI,India,controlled,yes,official_portal,https://www.iipsindia.ac.in/lasi,not_applied,Pranjal,unknown,"demographics;cognition;health surveys","restricted controlled data use; check DUA",no,high,"India anchor"
+LASI-DAD,India,controlled,yes,official_portal,https://lasi-dad.org/,not_applied,Pranjal,unknown,"aging;dementia outcomes;linked survey variables","controlled access; publication acknowledgment likely required",no,high,"Primary Indian validation cohort"
+ADNI,Global,controlled,yes,LONI,https://adni.loni.usc.edu/data-samples/access-data/,not_applied,Pranjal,unknown,"imaging;genomics;clinical;cognition;longitudinal","DUA + citation requirements",no,medium,"Primary source cohort"
+AMP-AD,Global,mixed,yes,Synapse,https://adknowledgeportal.synapse.org/,not_applied,Pranjal,unknown,"transcriptomics;proteomics;clinical","mixed open/controlled subsets",partial,medium,"High-value multi-omics"
+NIAGADS/ADSP,Global,mixed,yes,NIAGADS,https://www.niagads.org/,not_applied,Pranjal,unknown,"genomics;summary stats;selected omics","tiered access",partial,medium,"Optional if timeline allows"
+UK Biobank,Global,controlled,yes,UKB Access,https://www.ukbiobank.ac.uk/enable-your-research/apply-for-access,not_applied,Pranjal,unknown,"genotype;phenotype;imaging;biomarkers","paid/approved project governance",no,high,"High value but potentially slower"

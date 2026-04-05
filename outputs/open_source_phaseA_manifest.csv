@@ -1,0 +1,5 @@
+dataset,link,access_mode,priority,role_in_paper,status,notes
+AMP-AD_open_subset_agora_nominations,https://agora.adknowledgeportal.org/api/v1/genes/nominated,public_api_no_approval,P0,open_multiomics_target_nomination_evidence,completed,"955 nominated genes; 1173 nomination rows; AMP-AD-dominant"
+GEO_GSE63060,https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63060,public_no_approval,P0,expression_source_cohort_A,completed,"AD vs CTL extracted; MCI/transition excluded"
+GEO_GSE63061,https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63061,public_no_approval,P0,expression_source_cohort_B,completed,"AD vs CTL extracted; MCI/transition excluded"
+OASIS_1,https://www.oasis-brains.org/,open_terms,P1,external_imaging_validation,next,"queued for draft extension"
