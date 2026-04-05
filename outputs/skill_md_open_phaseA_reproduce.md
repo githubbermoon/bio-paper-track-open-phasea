@@ -25,7 +25,7 @@ This skill reproduces:
 ```bash
 git clone https://github.com/githubbermoon/bio-paper-track-open-phasea.git
 cd bio-paper-track-open-phasea
-git checkout ce20a51
+git checkout 6081a64
 ```
 
 Why this matters: reviewers can inspect exactly what `run_open_phaseA_benchmark.py`, `compute_open_phaseA_bootstrap.py`, and `fetch_ampad_open_subset.py` do before running anything.
