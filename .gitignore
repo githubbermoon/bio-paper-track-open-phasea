@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+test_env/
 
 # OS
 .DS_Store

@@ -9,11 +9,12 @@ from urllib.request import urlopen
 
 import numpy as np
 import pandas as pd
-from pycombat import Combat
-from scipy.stats import ttest_ind
+from neuroCombat import neuroCombat, neuroCombatFromTraining
+from scipy.stats import ttest_ind, zscore
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, balanced_accuracy_score, brier_score_loss, roc_auc_score
+from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -128,7 +129,12 @@ def load_geo_series(gse: str, raw_dir: Path) -> tuple[pd.DataFrame, pd.Series, s
 
 
 def load_platform_probe_to_symbol(gpl: str, cache_dir: Path) -> dict[str, str]:
-    txt = _download_text(_platform_annot_url(gpl), cache_dir / f"{gpl}.annot.gz")
+    try:
+        txt = _download_text(_platform_annot_url(gpl), cache_dir / f"{gpl}.annot.gz")
+    except Exception as e:
+        print(f"Warning: Could not fetch annot for {gpl} ({e})")
+        return {}
+        
     lines = txt.splitlines()
 
     start = None
@@ -173,6 +179,41 @@ def load_platform_probe_to_symbol(gpl: str, cache_dir: Path) -> dict[str, str]:
     return mapping
 
 
+def load_gse97760_custom(raw_dir: Path) -> tuple[pd.DataFrame, pd.Series, str]:
+    url = "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE97nnn/GSE97760/suppl/GSE97760_loess.txt.gz"
+    cache_path = raw_dir / "GSE97760_loess.txt.gz"
+    txt = _download_text(url, cache_path)
+    df = pd.read_csv(io.StringIO(txt), sep="\t")
+    
+    # Gene symbols extraction
+    df = df[df["GeneSymbol"].notna() & (df["GeneSymbol"] != "")]
+    df["GeneSymbol"] = df["GeneSymbol"].astype(str).apply(lambda x: re.split(r"[;|,/ ]+", x)[0].strip().upper())
+    df = df[df["GeneSymbol"] != ""]
+    
+    # Extract sample columns and collapse
+    sample_cols = [c for c in df.columns if c.startswith("Norm_")]
+    expr = df[["GeneSymbol"] + sample_cols].groupby("GeneSymbol").mean()
+    X = expr.T
+    
+    y_labels = []
+    sample_ids = []
+    for c in X.index:
+        sample_ids.append(c)
+        if "Control" in c:
+            y_labels.append(0)
+        elif "AP" in c:
+            y_labels.append(1)
+        else:
+            y_labels.append(None)
+            
+    y = pd.Series(y_labels, index=sample_ids, name="label")
+    keep = y.notna()
+    X = X.loc[keep]
+    y = y.loc[keep].astype(int)
+    
+    return X, y, "GPL16699"
+
+
 def _metrics(y_true: np.ndarray, prob: np.ndarray) -> dict[str, float]:
     pred = (prob >= 0.5).astype(int)
     return {
@@ -210,14 +251,14 @@ def _common_genes(Xa: pd.DataFrame, Xb: pd.DataFrame) -> pd.Index:
     return common
 
 
-def _feature_scores(X_train_target: pd.DataFrame, y_train_target: pd.Series, common: pd.Index) -> tuple[pd.Series, pd.Series]:
-    Xt = X_train_target[common]
-    var_score = Xt.var(axis=0).replace([np.inf, -np.inf], 0.0).fillna(0.0)
+def _feature_scores(X_train: pd.DataFrame, y_train: pd.Series, common: pd.Index) -> tuple[pd.Series, pd.Series]:
+    Xc = X_train[common]
+    var_score = Xc.var(axis=0).replace([np.inf, -np.inf], 0.0).fillna(0.0)
 
-    cases = Xt.loc[y_train_target == 1]
-    ctrls = Xt.loc[y_train_target == 0]
+    cases = Xc.loc[y_train == 1]
+    ctrls = Xc.loc[y_train == 0]
     stat, _ = ttest_ind(cases.values, ctrls.values, axis=0, equal_var=False, nan_policy="omit")
-    de_score = pd.Series(np.abs(np.nan_to_num(stat, nan=0.0)), index=Xt.columns).replace([np.inf, -np.inf], 0.0).fillna(0.0)
+    de_score = pd.Series(np.abs(np.nan_to_num(stat, nan=0.0)), index=Xc.columns).replace([np.inf, -np.inf], 0.0).fillna(0.0)
     return var_score, de_score
 
 
@@ -228,6 +269,8 @@ def _select_top_genes(
     var_score: pd.Series,
     de_score: pd.Series,
     agora_probe_set: set[str],
+    robust_features: pd.Index = None,
+    v2_weighted_de: pd.Series = None,
 ) -> list[str]:
     if mode == "var":
         s = var_score
@@ -237,6 +280,13 @@ def _select_top_genes(
         s = var_score[var_score.index.isin(agora_probe_set)]
     elif mode == "de_agora_intersection":
         s = de_score[de_score.index.isin(agora_probe_set)]
+    elif mode == "de_batch_robust":
+        s = de_score[de_score.index.isin(robust_features)]
+    elif mode == "de_batch_robust_v2":
+        if v2_weighted_de is not None:
+            s = v2_weighted_de
+        else:
+            s = de_score
     else:
         raise ValueError(f"Unknown feature_mode: {mode}")
 
@@ -246,22 +296,76 @@ def _select_top_genes(
     return s.sort_values(ascending=False).head(min(top_n, len(s))).index.tolist()
 
 
-def _combat_transductive_stacked(
+def _neurocombat_from_training_fixed(dat: np.ndarray, batch: np.ndarray, estimates: dict) -> np.ndarray:
+    """
+    Compatibility wrapper for neuroCombatFromTraining.
+    The upstream helper can fail on batch index casting; this mirrors the official
+    transform math while using robust index extraction.
+    """
+    batch = np.array(batch, dtype="str")
+    old_levels = np.array(estimates["batches"], dtype="str")
+
+    missing_levels = np.setdiff1d(np.unique(batch), old_levels)
+    if missing_levels.shape[0] != 0:
+        raise ValueError(f"The batches {missing_levels} are not part of the training dataset")
+
+    wh = [int(np.where(old_levels == x)[0][0]) for x in batch]
+
+    var_pooled = estimates["var.pooled"]
+    stand_mean = estimates["stand.mean"][:, 0]
+    mod_mean = estimates["mod.mean"]
+    gamma_star = estimates["gamma.star"]
+    delta_star = estimates["delta.star"]
+    n_array = dat.shape[1]
+
+    stand_mean = stand_mean + mod_mean.mean(axis=1)
+    stand_mean = np.transpose([stand_mean] * n_array)
+
+    bayesdata = np.subtract(dat, stand_mean) / np.sqrt(var_pooled)
+    gamma = np.transpose(gamma_star[wh, :])
+    delta = np.transpose(delta_star[wh, :])
+    bayesdata = np.subtract(bayesdata, gamma) / np.sqrt(delta)
+    bayesdata = bayesdata * np.sqrt(var_pooled) + stand_mean
+    return bayesdata
+
+
+def _combat_trainfit_apply_test(
     X_train: pd.DataFrame,
     batch_train: pd.Series,
     X_test: pd.DataFrame,
     batch_test: pd.Series,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Sensitivity-only ComBat: fit on stacked train+test features (no labels).
-    Kept as transductive analysis; NOT used for leakage-safe primary claims.
+    Leakage-safe ComBat using neuroCombat training estimates:
+    - fit ComBat estimates on training data only
+    - apply frozen estimates to test data
     """
-    combat = Combat()
-    X_all = pd.concat([X_train, X_test], axis=0)
-    b_all = pd.concat([batch_train, batch_test], axis=0)
-    X_all_adj = combat.fit_transform(X_all.values, b=b_all.values)
-    X_all_df = pd.DataFrame(X_all_adj, index=X_all.index, columns=X_all.columns)
-    return X_all_df.loc[X_train.index], X_all_df.loc[X_test.index]
+    covars_train = pd.DataFrame({"batch": batch_train.astype(str).values}, index=X_train.index)
+
+    train_fit = neuroCombat(
+        dat=X_train.T,
+        covars=covars_train,
+        batch_col="batch",
+    )
+    X_train_adj = pd.DataFrame(train_fit["data"].T, index=X_train.index, columns=X_train.columns)
+
+    # Try official helper first; fall back to fixed compatibility wrapper if needed.
+    try:
+        test_apply = neuroCombatFromTraining(
+            dat=X_test.T,
+            batch=batch_test.astype(str).values,
+            estimates=train_fit["estimates"],
+        )
+        X_test_data = test_apply["data"]
+    except Exception:
+        X_test_data = _neurocombat_from_training_fixed(
+            dat=X_test.T.values,
+            batch=batch_test.astype(str).values,
+            estimates=train_fit["estimates"],
+        )
+
+    X_test_adj = pd.DataFrame(X_test_data.T, index=X_test.index, columns=X_test.columns)
+    return X_train_adj, X_test_adj
 
 
 def _null_distribution(
@@ -308,6 +412,24 @@ def run() -> None:
     for gpl in sorted(set(gpl_of.values())):
         probe_to_symbol.update(load_platform_probe_to_symbol(gpl, annot_cache))
 
+    # Map AddNeuroMed datasets to Gene Symbols and collapse duplicates
+    for gse in gses:
+        X, y = data[gse]
+        cols = []
+        for c in X.columns:
+            sym = probe_to_symbol.get(c, "")
+            cols.append(sym if sym else None)
+        X.columns = cols
+        X = X.loc[:, X.columns.notna()]
+        X = X.T.groupby(level=0).mean().T
+        data[gse] = (X, y)
+
+    # Load Custom GSE97760 Target
+    X_97, y_97, gpl_97 = load_gse97760_custom(raw_dir)
+    data["GSE97760"] = (X_97, y_97)
+    gses.append("GSE97760")
+    gpl_of["GSE97760"] = gpl_97
+
     agora_df = pd.read_csv(root / "outputs/data/ampad_open_nominated_targets.csv")
     agora_symbols = set(agora_df["hgnc_symbol"].dropna().astype(str).str.upper())
 
@@ -316,226 +438,156 @@ def run() -> None:
     null_rows = []
     stats: dict[str, dict[str, float | int | str]] = {}
 
-    feature_modes = ["var", "de_ttest", "agora_only", "de_agora_intersection"]
+    feature_modes = ["var", "de_ttest", "agora_only", "de_agora_intersection", "de_batch_robust", "de_batch_robust_v2"]
 
-    for feature_mode in feature_modes:
-        for top_n in [200, 1000]:
-            for source, target in [("GSE63060", "GSE63061"), ("GSE63061", "GSE63060")]:
-                Xs, ys = data[source]
-                Xt, yt = data[target]
+    agora_probe_set_global = set()
 
-                common = _common_genes(Xs, Xt)
+    # ── PRIMARY: Bidirectional GSE63060 ↔ GSE63061 ──
+    directions = [
+        ("GSE63060", "GSE63061"),
+        ("GSE63061", "GSE63060"),
+    ]
+
+    for source_name, target_name in directions:
+        Xs_raw, ys = data[source_name]
+        Xt_raw, yt_raw = data[target_name]
+
+        for feature_mode in feature_modes:
+            for top_n in [200, 1000]:
+                common = _common_genes(Xs_raw, Xt_raw)
+                Xs = Xs_raw[common]
+                Xt = Xt_raw[common]
+                yt = yt_raw
+
                 Xtr_t, Xte_t, ytr, yte = train_test_split(
-                    Xt[common], yt, test_size=0.3, random_state=SEED, stratify=yt
+                    Xt, yt, test_size=0.3, random_state=SEED, stratify=yt
                 )
 
-                var_score, de_score = _feature_scores(Xtr_t, ytr, common)
-                agora_probe_set = {
-                    g for g in common if probe_to_symbol.get(g, "").upper() in agora_symbols
-                }
+                X_pool_full = pd.concat([Xs, Xtr_t], axis=0)
+                y_pool_full = pd.concat([ys, ytr], axis=0)
 
-                genes = _select_top_genes(feature_mode, top_n, common, var_score, de_score, agora_probe_set)
-                if len(genes) < 20:
-                    # skip empty/degenerate settings safely
+                # BDP-FS distortion scores (Z-score standardized)
+                batch_combo_full = pd.Series(
+                    [source_name] * len(Xs) + [target_name] * len(Xtr_t),
+                    index=X_pool_full.index,
+                )
+                covars_full = pd.DataFrame({"batch": batch_combo_full.astype(str).values}, index=X_pool_full.index)
+                train_fit_full = neuroCombat(dat=X_pool_full.T, covars=covars_full, batch_col="batch")
+
+                gamma_star = train_fit_full["estimates"]["gamma.star"]
+                delta_star = train_fit_full["estimates"]["delta.star"]
+                gamma_abs = np.mean(np.abs(gamma_star), axis=0)
+                delta_abs = np.mean(np.abs(1.0 - delta_star), axis=0)
+                g_s = pd.Series(gamma_abs, index=X_pool_full.columns)
+                d_s = pd.Series(delta_abs, index=X_pool_full.columns)
+                z_g = (g_s - g_s.mean()) / g_s.std()
+                z_d = (d_s - d_s.mean()) / d_s.std()
+
+                # ── v1: Original BDP-FS (equal weight, hard 80th percentile) ──
+                distortion_scores = (z_g.abs() + z_d.abs()).fillna(0)
+                threshold = distortion_scores.quantile(0.80)
+                robust_features = distortion_scores[distortion_scores <= threshold].index
+
+                agora_probe_set = {g for g in common if g.upper() in agora_symbols}
+
+                # ── v2: BDP-FS Adaptive Masterpiece (GMM-Anchored Soft Weighting) ──
+                ALPHA = 0.2  # Asymmetric Composition: Penalize variance 4x more than mean
+                distortion_v2 = (ALPHA * z_g.abs() + (1 - ALPHA) * z_d.abs()).fillna(0)
+
+                # Agora Shield: discount penalty for nominated targets
+                agora_mask = distortion_v2.index.isin(agora_probe_set)
+                distortion_v2[agora_mask] = distortion_v2[agora_mask] * 0.5
+
+                # GMM adaptive anchor selection
+                v2_vals = distortion_v2.values.reshape(-1, 1)
+                gmm = GaussianMixture(n_components=2, random_state=SEED).fit(v2_vals)
+                means = gmm.means_.flatten()
+                stds = np.sqrt(gmm.covariances_.flatten())
+                
+                # Anchor tau_0 = 95th percentile of the "Native" (lower mean) component
+                idx_native = np.argmin(means)
+                tau_0 = float(means[idx_native] + 1.645 * stds[idx_native])
+                
+                # Soft distortion weighting: Score = |t| * exp(-max(0, D - tau_0))
+                DECAY_ALPHA = 1.0 # Gradient of the penalty
+                weight_v2 = np.exp(-DECAY_ALPHA * np.maximum(0, distortion_v2 - tau_0))
+
+                _, de_pool_raw = _feature_scores(X_pool_full, y_pool_full, common)
+                v2_weighted_de = de_pool_raw * weight_v2.reindex(de_pool_raw.index, fill_value=1.0)
+
+                # Arm-native feature scoring
+                var_target, de_target = _feature_scores(Xtr_t, ytr, common)
+                var_source, de_source = _feature_scores(Xs, ys, common)
+                var_pool, de_pool = _feature_scores(X_pool_full, y_pool_full, common)
+
+                genes_target = _select_top_genes(feature_mode, top_n, common, var_target, de_target, agora_probe_set, robust_features, v2_weighted_de)
+                genes_source = _select_top_genes(feature_mode, top_n, common, var_source, de_source, agora_probe_set, robust_features, v2_weighted_de)
+                genes_pool = _select_top_genes(feature_mode, top_n, common, var_pool, de_pool, agora_probe_set, robust_features, v2_weighted_de)
+
+                if min(len(genes_target), len(genes_source), len(genes_pool)) < 20:
                     continue
 
-                Xs_use = Xs[genes]
-                Xtr = Xtr_t[genes]
-                Xte = Xte_t[genes]
+                source_label = source_name
+                target_label = target_name
 
-                p_target = _fit_predict(Xtr, ytr, Xte)
+                # target-only
+                p_target = _fit_predict(Xtr_t[genes_target], ytr, Xte_t[genes_target])
                 m_target = _metrics(yte.values, p_target)
-                rows.append(
-                    {
-                        "source": source,
-                        "target": target,
-                        "feature_mode": feature_mode,
-                        "top_n_genes": top_n,
-                        "selected_gene_count": len(genes),
-                        "arm": "target_only",
-                        **m_target,
-                    }
-                )
-                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_target):
-                    pred_rows.append(
-                        {
-                            "source": source,
-                            "target": target,
-                            "feature_mode": feature_mode,
-                            "top_n_genes": top_n,
-                            "arm": "target_only",
-                            "sample_id": sid,
-                            "y_true": int(yt_i),
-                            "y_prob": float(pr_i),
-                        }
-                    )
+                rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_target), "arm": "target_only", **m_target})
+                for sid, yt_i, pr_i in zip(Xte_t[genes_target].index, yte.values, p_target):
+                    pred_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "arm": "target_only", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
 
-                p_source = _fit_predict(Xs_use, ys, Xte)
+                # source-only
+                p_source = _fit_predict(Xs[genes_source], ys, Xte_t[genes_source])
                 m_source = _metrics(yte.values, p_source)
-                rows.append(
-                    {
-                        "source": source,
-                        "target": target,
-                        "feature_mode": feature_mode,
-                        "top_n_genes": top_n,
-                        "selected_gene_count": len(genes),
-                        "arm": "source_only",
-                        **m_source,
-                    }
-                )
-                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_source):
-                    pred_rows.append(
-                        {
-                            "source": source,
-                            "target": target,
-                            "feature_mode": feature_mode,
-                            "top_n_genes": top_n,
-                            "arm": "source_only",
-                            "sample_id": sid,
-                            "y_true": int(yt_i),
-                            "y_prob": float(pr_i),
-                        }
-                    )
+                rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_source), "arm": "source_only", **m_source})
+                for sid, yt_i, pr_i in zip(Xte_t[genes_source].index, yte.values, p_source):
+                    pred_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "arm": "source_only", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
 
                 # pooled raw
-                X_combo_raw = pd.concat([Xs_use, Xtr], axis=0)
+                X_combo_raw = pd.concat([Xs[genes_pool], Xtr_t[genes_pool]], axis=0)
                 y_combo_raw = pd.concat([ys, ytr], axis=0)
-                p_combo_raw = _fit_predict(X_combo_raw, y_combo_raw, Xte)
+                p_combo_raw = _fit_predict(X_combo_raw, y_combo_raw, Xte_t[genes_pool])
                 m_combo_raw = _metrics(yte.values, p_combo_raw)
-                rows.append(
-                    {
-                        "source": source,
-                        "target": target,
-                        "feature_mode": feature_mode,
-                        "top_n_genes": top_n,
-                        "selected_gene_count": len(genes),
-                        "arm": "source_plus_target_raw",
-                        **m_combo_raw,
-                    }
-                )
-                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_combo_raw):
-                    pred_rows.append(
-                        {
-                            "source": source,
-                            "target": target,
-                            "feature_mode": feature_mode,
-                            "top_n_genes": top_n,
-                            "arm": "source_plus_target_raw",
-                            "sample_id": sid,
-                            "y_true": int(yt_i),
-                            "y_prob": float(pr_i),
-                        }
-                    )
+                rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_pool), "arm": "source_plus_target_raw", **m_combo_raw})
+                for sid, yt_i, pr_i in zip(Xte_t[genes_pool].index, yte.values, p_combo_raw):
+                    pred_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "arm": "source_plus_target_raw", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
 
-                # pooled combat leakage-safe
-                batch_combo = pd.Series([source] * len(Xs_use) + [target] * len(Xtr), index=X_combo_raw.index)
-                batch_te = pd.Series([target] * len(Xte), index=Xte.index)
-                X_combo_cb, Xte_cb = _combat_transductive_stacked(X_combo_raw, batch_combo, Xte, batch_te)
+                # pooled ComBat train-fit/test-apply
+                batch_combo = pd.Series([source_label] * len(Xs[genes_pool]) + [target_label] * len(Xtr_t[genes_pool]), index=X_combo_raw.index)
+                batch_te = pd.Series([target_label] * len(Xte_t[genes_pool]), index=Xte_t[genes_pool].index)
+                X_combo_cb, Xte_cb = _combat_trainfit_apply_test(X_combo_raw, batch_combo, Xte_t[genes_pool], batch_te)
                 p_combo_cb = _fit_predict(X_combo_cb, y_combo_raw, Xte_cb)
                 m_combo_cb = _metrics(yte.values, p_combo_cb)
-                rows.append(
-                    {
-                        "source": source,
-                        "target": target,
-                        "feature_mode": feature_mode,
-                        "top_n_genes": top_n,
-                        "selected_gene_count": len(genes),
-                        "arm": "source_plus_target_combat_transductive",
-                        **m_combo_cb,
-                    }
-                )
-                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_combo_cb):
-                    pred_rows.append(
-                        {
-                            "source": source,
-                            "target": target,
-                            "feature_mode": feature_mode,
-                            "top_n_genes": top_n,
-                            "arm": "source_plus_target_combat_transductive",
-                            "sample_id": sid,
-                            "y_true": int(yt_i),
-                            "y_prob": float(pr_i),
-                        }
-                    )
+                rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_pool), "arm": "source_plus_target_combat_trainfit", **m_combo_cb})
+                for sid, yt_i, pr_i in zip(Xte_cb.index, yte.values, p_combo_cb):
+                    pred_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "arm": "source_plus_target_combat_trainfit", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
 
                 # null distribution
-                null_aucs, p_null_avg = _null_distribution(Xtr, ytr, Xte, yte, n_perm=100)
+                null_aucs, p_null_avg = _null_distribution(Xtr_t[genes_target], ytr, Xte_t[genes_target], yte, n_perm=100)
                 null_mean = float(np.mean(null_aucs))
                 null_q05 = float(np.quantile(null_aucs, 0.05))
                 null_q95 = float(np.quantile(null_aucs, 0.95))
 
-                # Row value now uses permutation-AUROC mean for consistency
-                rows.append(
-                    {
-                        "source": source,
-                        "target": target,
-                        "feature_mode": feature_mode,
-                        "top_n_genes": top_n,
-                        "selected_gene_count": len(genes),
-                        "arm": "null_label_permutation_mean_auroc",
-                        "auroc": null_mean,
-                        "auprc": np.nan,
-                        "balanced_accuracy": np.nan,
-                        "brier": np.nan,
-                    }
-                )
-
-                # keep probability-averaged null predictions for optional paired sensitivity analysis
-                rows.append(
-                    {
-                        "source": source,
-                        "target": target,
-                        "feature_mode": feature_mode,
-                        "top_n_genes": top_n,
-                        "selected_gene_count": len(genes),
-                        "arm": "null_label_permutation_avg100_prob",
-                        **_metrics(yte.values, p_null_avg),
-                    }
-                )
-                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_null_avg):
-                    pred_rows.append(
-                        {
-                            "source": source,
-                            "target": target,
-                            "feature_mode": feature_mode,
-                            "top_n_genes": top_n,
-                            "arm": "null_label_permutation_avg100_prob",
-                            "sample_id": sid,
-                            "y_true": int(yt_i),
-                            "y_prob": float(pr_i),
-                        }
-                    )
+                rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_target), "arm": "null_label_permutation_mean_auroc", "auroc": null_mean, "auprc": np.nan, "balanced_accuracy": np.nan, "brier": np.nan})
+                rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_target), "arm": "null_label_permutation_avg100_prob", **_metrics(yte.values, p_null_avg)})
+                for sid, yt_i, pr_i in zip(Xte_t[genes_target].index, yte.values, p_null_avg):
+                    pred_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "arm": "null_label_permutation_avg100_prob", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
 
                 for i, auc in enumerate(null_aucs):
-                    null_rows.append(
-                        {
-                            "source": source,
-                            "target": target,
-                            "feature_mode": feature_mode,
-                            "top_n_genes": top_n,
-                            "perm_index": i,
-                            "null_perm_auroc": float(auc),
-                        }
-                    )
+                    null_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "perm_index": i, "null_perm_auroc": float(auc)})
 
-                key = f"{feature_mode}__{source}_to_{target}_top{top_n}"
+                key = f"{feature_mode}__{source_label}_to_{target_label}_top{top_n}"
                 p_target_vs_null = float((null_aucs >= m_target["auroc"]).mean())
                 stats[key] = {
-                    "feature_mode": feature_mode,
-                    "source": source,
-                    "target": target,
-                    "top_n_genes": int(top_n),
-                    "selected_gene_count": int(len(genes)),
+                    "feature_mode": feature_mode, "source": source_label, "target": target_label,
+                    "top_n_genes": int(top_n), "selected_gene_count": int(len(genes_target)),
                     "target_auroc": float(m_target["auroc"]),
                     "delta_auroc_source_plus_target_raw_vs_target_only": float(m_combo_raw["auroc"] - m_target["auroc"]),
-                    "delta_auroc_source_plus_target_combat_transductive_vs_target_only": float(
-                        m_combo_cb["auroc"] - m_target["auroc"]
-                    ),
-                    "null_perm_n": int(len(null_aucs)),
-                    "null_perm_auroc_mean": null_mean,
+                    "delta_auroc_source_plus_target_combat_trainfit_vs_target_only": float(m_combo_cb["auroc"] - m_target["auroc"]),
+                    "null_perm_n": int(len(null_aucs)), "null_perm_auroc_mean": null_mean,
                     "null_perm_auroc_std": float(np.std(null_aucs)),
-                    "null_perm_auroc_q05": null_q05,
-                    "null_perm_auroc_q95": null_q95,
+                    "null_perm_auroc_q05": null_q05, "null_perm_auroc_q95": null_q95,
                     "p_target_gt_null_perm": p_target_vs_null,
                 }
 
@@ -556,7 +608,7 @@ def run() -> None:
         "feature_modes": feature_modes,
         "agora_unique_symbols": int(len(agora_symbols)),
         "null_policy": "100x label permutations; primary null reported as mean permutation AUROC",
-        "batch_harmonization": "ComBat transductive sensitivity arm on stacked train+test features (no labels); primary leakage-safe claims use non-ComBat arms",
+        "batch_harmonization": "ComBat neuroCombat train-fit/test-apply arm (frozen training estimates) used as leakage-safe primary arm",
     }
     out_manifest.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 

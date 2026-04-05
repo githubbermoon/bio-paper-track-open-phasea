@@ -93,12 +93,12 @@ def run() -> None:
         comp_defs = []
         if "source_plus_target_raw" in arms and "target_only" in arms:
             comp_defs.append(("source_plus_target_raw", "target_only", "source_plus_target_raw_vs_target_only"))
-        if "source_plus_target_combat_transductive" in arms and "target_only" in arms:
+        if "source_plus_target_combat_trainfit" in arms and "target_only" in arms:
             comp_defs.append(
                 (
-                    "source_plus_target_combat_transductive",
+                    "source_plus_target_combat_trainfit",
                     "target_only",
-                    "source_plus_target_combat_transductive_vs_target_only",
+                    "source_plus_target_combat_trainfit_vs_target_only",
                 )
             )
         if "source_only" in arms and "target_only" in arms:

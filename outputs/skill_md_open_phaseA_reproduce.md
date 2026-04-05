@@ -1,6 +1,6 @@
 ---
 name: open-phasea-ad-benchmark-repro
-description: Reproduce the final leakage-safe AD cross-cohort benchmark (v7 packaging) with consistent permutation-null reporting, AMP-AD Agora feature ablations, and transductive ComBat sensitivity analysis.
+description: Reproduce the final leakage-safe AD cross-cohort benchmark (v8 GMM-Soft packaging) with BDP-FS v2 soft-weighting, consistent permutation-null reporting, and AMP-AD Agora feature ablations.
 allowed-tools: Bash(python *), Bash(pip *), WebFetch
 ---
 
@@ -25,8 +25,8 @@ Important: run AMP-AD open fetch before training, because train script uses the 
 ```bash
 python src/ingest/fetch_ampad_open_subset.py
 python src/train/run_open_phaseA_benchmark.py
+python src/eval/tau_hyperparameter_sweep.py
 python src/eval/compute_open_phaseA_bootstrap.py
-python src/eval/model_family_sensitivity.py
 python src/eval/null_stability_check.py
 ```
 
@@ -39,14 +39,10 @@ python src/eval/null_stability_check.py
 
 ## 4) Expected artifacts
 - outputs/metrics/open_phaseA_main_results.csv
-- outputs/metrics/open_phaseA_predictions.csv
+- outputs/stats/tau_sweep_metrics.csv
 - outputs/stats/open_phaseA_null_distribution.csv
 - outputs/stats/open_phaseA_auroc_ci.csv
-- outputs/stats/open_phaseA_paired_tests.csv
-- outputs/stats/open_phaseA_model_family_sensitivity.csv
-- outputs/stats/open_phaseA_null_stability_de1000_perm1000.csv
 - outputs/stats/open_phaseA_stats.json
-- outputs/stats/open_phaseA_stats_manifest.json
 - outputs/open_phaseA_data_manifest.json
 - outputs/data/ampad_open_nominated_targets.csv
 - outputs/tables/ampad_open_subset_summary.csv
@@ -61,12 +57,9 @@ import pandas as pd
 root = Path('.')
 required = [
   'outputs/metrics/open_phaseA_main_results.csv',
-  'outputs/metrics/open_phaseA_predictions.csv',
+  'outputs/stats/tau_sweep_metrics.csv',
   'outputs/stats/open_phaseA_null_distribution.csv',
   'outputs/stats/open_phaseA_auroc_ci.csv',
-  'outputs/stats/open_phaseA_paired_tests.csv',
-  'outputs/stats/open_phaseA_model_family_sensitivity.csv',
-  'outputs/stats/open_phaseA_null_stability_de1000_perm1000.csv',
   'outputs/stats/open_phaseA_stats.json',
   'outputs/open_phaseA_data_manifest.json',
   'outputs/data/ampad_open_nominated_targets.csv',
@@ -103,8 +96,8 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python src/ingest/fetch_ampad_open_subset.py
 python src/train/run_open_phaseA_benchmark.py
+python src/eval/tau_hyperparameter_sweep.py
 python src/eval/compute_open_phaseA_bootstrap.py
-python src/eval/model_family_sensitivity.py
 python src/eval/null_stability_check.py
 deactivate
 rm -rf test_env
@@ -113,8 +106,8 @@ rm -rf test_env
 ## 7) Freeze and release tagging
 ```bash
 git add .
-git commit -m "freeze: v7 reproducibility package"
+git commit -m "freeze: v8 GMM-Soft reproducibility package"
 git push
-git tag -a v1.0.0-phaseA -m "v7 manuscript-aligned freeze"
-git push origin v1.0.0-phaseA
+git tag -a v1.0.0-phaseA-v8 -m "v8 GMM-Soft manuscript-aligned freeze"
+git push origin v1.0.0-phaseA-v8
 ```
