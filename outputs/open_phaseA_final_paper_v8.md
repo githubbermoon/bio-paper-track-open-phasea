@@ -3,7 +3,7 @@
 **Pranjal**
 
 ## Abstract
-Cross-cohort Alzheimer's disease (AD) blood transcriptomic prediction is sensitive to batch effects introduced during dataset harmonization. Standard pipelines treat batch correction and feature selection as independent steps, allowing features that required extreme mathematical rescuing during harmonization to dominate predictive models. We introduce **Batch-Distortion Penalized Feature Selection (BDP-FS)**, a regularization framework that extracts empirical Bayes distortion parameters from harmonization and penalizes features exhibiting high technical noise. We propose a "Masterpiece" iteration, **GMM-anchored soft weighting**, which employs 2-component Gaussian Mixture Models to adaptively regularize feature weights. In bidirectional evaluation on AddNeuroMed sister-cohorts (GSE63060/GSE63061), BDP-FS (GMM-Soft) achieves a positive predictive lift (**+0.009 AUROC**) in compatible transfers. Crucially, in sparse feature settings (Top-200), the transition from hard-thresholding to GMM-anchored soft-weighting yields a measured **+0.096 lift** and a 100% preservation of **164 AMP-AD Agora nominated biological targets** that are otherwise lost to technical noise. Conversely, a secondary cross-platform evaluation on GSE97760 demonstrates that underpowered holdouts produce AUROCs indistinguishable from chance ($p=0.26$ against 1,000 permutations), underscoring the necessity of adequately powered validation cohorts. All code and data are publicly available.
+Cross-cohort Alzheimer's disease (AD) blood transcriptomic prediction is sensitive to batch effects introduced during dataset harmonization. Standard pipelines treat batch correction and feature selection as independent steps, allowing features that required extreme mathematical rescuing during harmonization to dominate predictive models. We introduce **Batch-Distortion Penalized Feature Selection (BDP-FS)**, a regularization framework that extracts empirical Bayes distortion parameters from harmonization and penalizes features exhibiting high technical noise. We propose a "Masterpiece" iteration, **GMM-anchored soft weighting**, which employs 2-component Gaussian Mixture Models to adaptively regularize feature weights. In bidirectional evaluation on AddNeuroMed sister-cohorts (GSE63060/GSE63061), BDP-FS (GMM-Soft) achieves a positive predictive lift (**+0.009 AUROC**) in compatible transfers. Crucially, in sparse feature settings (Top-200), the transition from hard-thresholding to GMM-anchored soft-weighting yields a measured **+0.096 lift** and a 100% preservation of **164 AMP-AD Agora nominated biological targets** that are otherwise lost to technical noise. Conversely, a secondary cross-platform evaluation on GSE97760 demonstrates that underpowered holdouts produce AUROCs indistinguishable from chance ($p=0.26$ against 1,000 permutations), underscoring the necessity of adequately powered validation cohorts. **Code and data are publicly available at:** https://github.com/githubbermoon/bio-paper-track-open-phasea
 
 ## 1. Introduction
 Blood-based transcriptomic biomarkers offer a non-invasive, scalable alternative to cerebrospinal fluid (CSF) and amyloid PET imaging for Alzheimer's disease (AD) screening [17], [18]. Recent advances in diagnostic criteria, such as the **NIA-AA Research Framework (ATN)**—which classifies individuals based on Amyloid (A), Tau (T), and Neurodegeneration (N) biomarkers—have shifted the focus toward molecularly-defined disease states rather than purely clinical symptomatology [15]. However, the transition from brain-based pathology to blood-derived gene expression signatures is complicated by systemic technical noise, cross-platform variance, and the "curse of dimensionality" inherent in high-throughput transcriptomics [16].
@@ -167,13 +167,13 @@ We introduced BDP-FS, a regularization framework that replaces binary feature el
 
 ## 8. Reproducibility: Skill File
 
-This section provides the machine-readable "Skill File" required for automated result verification on the ClawRxiv and Claw4S platforms.
+This section provides the machine-readable "Skill File" required for automated result verification on the ClawRxiv and Claw4S platforms. Repository: https://github.com/githubbermoon/bio-paper-track-open-phasea
 
 ```yaml
 ---
 name: bdpfs-v2-repro
 description: Reproduce BDP-FS v2 (GMM-Soft) cross-cohort AD prediction with 1,000 permutations and Agora Shield validation.
-allowed-tools: Bash(python *), Bash(pip *), WebFetch
+allowed-tools: Bash(git *), Bash(cd *), Bash(python *), Bash(pip *), WebFetch
 ---
 ```
 
@@ -188,6 +188,9 @@ This skill reproduces the "Masterpiece" findings of the BDP-FS v2 framework, spe
 
 ### Step 1: Environment Baseline
 ```bash
+git clone https://github.com/githubbermoon/bio-paper-track-open-phasea.git
+cd bio-paper-track-open-phasea
+git checkout v1.0.0-phaseA-v8
 python -m pip install -r requirements.txt
 python -c "import sklearn, scipy; print('ENV_OK')"
 ```

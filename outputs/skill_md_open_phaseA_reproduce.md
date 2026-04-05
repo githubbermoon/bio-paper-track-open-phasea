@@ -1,7 +1,7 @@
 ---
 name: bdpfs-v2-repro
 description: Reproduce BDP-FS v2 (GMM-Soft) cross-cohort AD prediction with 1,000 permutations and Agora Shield validation.
-allowed-tools: Bash(python *), Bash(pip *), WebFetch
+allowed-tools: Bash(git *), Bash(cd *), Bash(python *), Bash(pip *), WebFetch
 ---
 
 # Reproducibility: Skill File
@@ -17,6 +17,9 @@ This skill reproduces the "Masterpiece" findings of the BDP-FS v2 framework, spe
 
 ### Step 1: Environment Baseline
 ```bash
+git clone https://github.com/githubbermoon/bio-paper-track-open-phasea.git
+cd bio-paper-track-open-phasea
+git checkout v1.0.0-phaseA-v8
 python -m pip install -r requirements.txt
 python -c "import sklearn, scipy; print('ENV_OK')"
 ```
