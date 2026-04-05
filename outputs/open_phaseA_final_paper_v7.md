@@ -13,6 +13,8 @@ We address three practical questions:
 2) Are transfer effects (source_only or pooled source+target training) direction-stable across cohorts?
 3) Do AMP-AD-informed feature restrictions materially change predictive behavior?
 
+Recent work has reported increasingly complex machine learning approaches for AD blood transcriptomic prediction, including deep-learning/XAI feature-selection pipelines and digital-diagnosis signatures [11], [12]. Related multi-omics machine-learning frameworks also continue to improve apparent classification performance in AD-focused settings [13]. Against this landscape, our study is intentionally conservative: we prioritize leakage-safe split discipline, explicit null calibration, and transparent sensitivity labeling to reduce over-optimistic transport claims in small cross-cohort settings.
+
 ## 2. Data
 ### 2.1 GEO cohorts
 - GSE63060 and GSE63061 from NCBI GEO [1], [2]
@@ -109,6 +111,8 @@ Three findings are robust across this benchmark:
 
 The transductive ComBat arm can be informative for sensitivity analysis, but it is excluded from primary evidence because ComBat parameters are estimated on stacked train+test features, which violates a strict predictive boundary for target-holdout evaluation [7]. In other words, even without labels, test-distribution information enters the harmonization step and can inflate apparent transportability; we therefore treat this arm as diagnostic only.
 
+In directional settings where source+target raw outperforms target_only, a practical explanation is that the gain from larger pooled training size can, in some cohort directions, outweigh uncorrected batch-noise penalties by better capturing shared disease-associated signal.
+
 The relatively high target_only AUROC in GSE63061->GSE63060 (0.8908 for DE-1000) is interpreted cautiously as a property of this specific curated binary AD-vs-CTL setup and cohort composition, not as proof of universally easy blood-based AD classification.
 
 A local predictive-harmonization audit was run to test train-only ComBat parameterization; the current pycombat implementation failed at train-fit/test-transform stage because test batches did not match fit-time category requirements. This supports retaining ComBat as a sensitivity-only arm until a strict train-only harmonization alternative is integrated.
@@ -160,3 +164,9 @@ Core outputs:
 [9] C. Cortes and V. Vapnik, “Support-vector networks,” Machine Learning, 20:273-297, 1995. doi:10.1007/BF00994018.
 
 [10] L. Breiman, “Random forests,” Machine Learning, 45:5-32, 2001. doi:10.1023/A:1010933404324.
+
+[11] H. Lei et al., “Alzheimer's disease prediction using deep learning and XAI based interpretable feature selection from blood gene expression data,” Scientific Reports, 2026. PMID: 41667529.
+
+[12] M. Altab et al., “A machine learning-enabled blood transcriptomic signature for digital diagnosis and subtyping of Alzheimer's disease,” npj Digital Medicine, 2026. PMID: 41491414.
+
+[13] S. Kumar et al., “An integrative multiomics random forest framework for robust biomarker discovery,” GigaScience, 2026. PMID: 41363728.
