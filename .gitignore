@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# OS
+.DS_Store
+
+# Large/raw cached downloads (repro scripts can re-fetch)
+data/raw/
+
+# Local temp
+*.log
+*.tmp

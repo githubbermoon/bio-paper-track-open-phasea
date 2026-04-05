@@ -1,0 +1,11 @@
+version: v1
+track: brain_aging_india_transfer
+tasks:
+  primary: {name: dementia_risk_classification, metrics: [auroc, auprc, balanced_accuracy, brier, ece]}
+models:
+  no_transfer: [logistic_l2, lightgbm]
+  transfer: [feature_transfer_logistic, feature_transfer_lightgbm]
+statistics:
+  ci_method: block_bootstrap
+  paired_test: paired_bootstrap
+  multiple_test_correction: benjamini_hochberg

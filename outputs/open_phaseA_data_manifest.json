@@ -1,0 +1,15 @@
+{
+  "datasets": [
+    "GSE63060",
+    "GSE63061"
+  ],
+  "source": "NCBI GEO series_matrix",
+  "urls": {
+    "GSE63060": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63060/matrix/GSE63060_series_matrix.txt.gz",
+    "GSE63061": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63061/matrix/GSE63061_series_matrix.txt.gz"
+  },
+  "cached_files": [
+    "/Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/data/raw/open_geo/GSE63060_series_matrix.txt.gz",
+    "/Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/data/raw/open_geo/GSE63061_series_matrix.txt.gz"
+  ]
+}

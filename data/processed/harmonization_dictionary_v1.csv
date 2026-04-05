@@ -1,0 +1,14 @@
+canonical_feature,domain,feature_type,target_role,priority_tier
+age_years,demographics,continuous,covariate,1
+sex_at_birth,demographics,categorical,covariate,1
+education_years,socioeconomic,continuous,covariate,2
+cognitive_global_score,cognition,continuous,target_or_covariate,1
+dementia_dx,cognition,binary,target,1
+followup_time_days,longitudinal,continuous,survival_time,1
+apoe4_count,genomics,ordinal,covariate,2
+prs_ad,genomics,continuous,covariate,3
+rna_module_1,transcriptomics,continuous,covariate,3
+protein_panel_1,proteomics,continuous,covariate,3
+mri_hippocampus_norm,imaging,continuous,covariate,2
+site_id,metadata,categorical,grouping,1
+collection_time,metadata,date,grouping,1

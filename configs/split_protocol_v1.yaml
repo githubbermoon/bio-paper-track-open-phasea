@@ -1,0 +1,14 @@
+version: v1
+objective: leakage_safe_cross_cohort_transfer
+source_cohorts: [adni, amp_ad, niagads_adsp_optional, ukb_optional]
+target_cohort: [lasi_dad]
+split_keys:
+  group_keys: [site_id, subject_id]
+  time_key: collection_time
+protocols:
+  source_pretrain: {type: grouped_temporal}
+  target_transfer_primary: {type: strict_forward_site_grouped}
+assertions:
+  - check_no_future_leakage_in_features
+  - check_subject_disjointness
+  - check_minimum_events_per_split

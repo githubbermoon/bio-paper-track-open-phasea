@@ -1,0 +1,26 @@
+metric,value
+unique_nominated_genes,955
+total_nominations,1173
+source::AMP-AD,918
+source::TREAT-AD,143
+source::Community,103
+source::Resilience-AD,9
+input_data::RNA,626
+input_data::Protein,530
+input_data::Genetics,510
+input_data::Metabolomics,162
+input_data::Clinical,101
+input_data::Phenomics,31
+input_data::Risk Scores,5
+input_data::Pathway Modeling,5
+input_data::Behavior,3
+study::MSBB,205
+study::ROSMAP,131
+"study::ACT, BLSA, Banner",108
+study::ADNI,100
+study::Mayo,99
+"study::GSE5281, GSE48350, GSE33000, GSE44772, ROSMAP, MSBB, Mayo, ABA",78
+study::HBI_scRNAseq,70
+study::VirusResilience,66
+"study::Banner, ROSMAP, MSBB, Emory",64
+"study::AIBL, ADNI",32
