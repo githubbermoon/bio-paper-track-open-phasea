@@ -123,11 +123,11 @@ A reproducible leakage-safe evaluation pipeline on open AD blood transcriptomic 
 Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea
 
 Run sequence:
-1) `python src/train/run_open_phaseA_benchmark.py`
-2) `python src/eval/compute_open_phaseA_bootstrap.py`
-3) `python src/eval/model_family_sensitivity.py`
-4) `python src/eval/null_stability_check.py`
-5) `python src/ingest/fetch_ampad_open_subset.py`
+1) `python src/ingest/fetch_ampad_open_subset.py`
+2) `python src/train/run_open_phaseA_benchmark.py`
+3) `python src/eval/compute_open_phaseA_bootstrap.py`
+4) `python src/eval/model_family_sensitivity.py`
+5) `python src/eval/null_stability_check.py`
 
 Core outputs:
 - `outputs/metrics/open_phaseA_main_results.csv`
