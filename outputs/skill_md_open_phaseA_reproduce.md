@@ -37,24 +37,33 @@ python src/eval/compute_open_phaseA_bootstrap.py
 ```
 Produces bootstrap CIs and paired tests with BH correction.
 
-## 4) AMP-AD open subset ingest
+## 4) Run local sensitivity checks
+```bash
+python src/eval/model_family_sensitivity.py
+python src/eval/null_stability_check.py
+```
+Produces model-family robustness table and DE-1000 1000-permutation null stability summary.
+
+## 5) AMP-AD open subset ingest
 ```bash
 python src/ingest/fetch_ampad_open_subset.py
 ```
 
-## 5) Expected artifacts
+## 6) Expected artifacts
 - outputs/metrics/open_phaseA_main_results.csv
 - outputs/metrics/open_phaseA_predictions.csv
 - outputs/stats/open_phaseA_null_distribution.csv
 - outputs/stats/open_phaseA_auroc_ci.csv
 - outputs/stats/open_phaseA_paired_tests.csv
+- outputs/stats/open_phaseA_model_family_sensitivity.csv
+- outputs/stats/open_phaseA_null_stability_de1000_perm1000.csv
 - outputs/stats/open_phaseA_stats.json
 - outputs/stats/open_phaseA_stats_manifest.json
 - outputs/open_phaseA_data_manifest.json
 - outputs/data/ampad_open_nominated_targets.csv
 - outputs/tables/ampad_open_subset_summary.csv
 
-## 6) Validation checks
+## 7) Validation checks
 ```bash
 python - <<'PY'
 import json
@@ -68,6 +77,8 @@ required = [
   'outputs/stats/open_phaseA_null_distribution.csv',
   'outputs/stats/open_phaseA_auroc_ci.csv',
   'outputs/stats/open_phaseA_paired_tests.csv',
+  'outputs/stats/open_phaseA_model_family_sensitivity.csv',
+  'outputs/stats/open_phaseA_null_stability_de1000_perm1000.csv',
   'outputs/stats/open_phaseA_stats.json',
   'outputs/open_phaseA_data_manifest.json',
   'outputs/data/ampad_open_nominated_targets.csv',

@@ -1,57 +1,66 @@
-# Leakage-Safe Cross-Cohort Alzheimer’s Blood Transcriptomic Prediction on Open Data: v5 with Consistent Permutation Nulls and AMP-AD Feature Ablations
+# Leakage-Safe Cross-Cohort Alzheimer’s Blood Transcriptomic Prediction on Open Data: Consistent Permutation Nulls, AMP-AD Feature Ablations, and Sensitivity Analyses
 
 **Pranjal**
 
 ## Abstract
-Cross-cohort Alzheimer’s disease (AD) blood transcriptomic prediction is sensitive to cohort shift and vulnerable to over-interpretation when evaluation controls are inconsistent. We present a fully open v5 revision on GEO cohorts GSE63060 and GSE63061 that directly addresses reviewer blockers: (i) consistent null reporting based on permutation-AUROC distributions, (ii) explicit separation of leakage-safe primary analysis from transductive ComBat sensitivity analysis, and (iii) model-integrated AMP-AD feature ablations. We evaluate target_only, source_only, and pooled source+target raw training under leakage-safe target-holdout splits; ComBat on stacked train+test is retained as sensitivity only. Feature modes are variance, DE t-test, Agora-only, and DE-Agora intersection. Across all settings, mean permutation-null AUROC is near chance (0.4887-0.5132). In primary analyses, target_only outperforms permutation-null means in both directions and multiple feature settings after BH correction. Conservative conclusion: leakage-safe target-domain signal is reproducible, transfer gains are direction-dependent, and transductive harmonization outcomes should not be used as primary evidence.
+Cross-cohort Alzheimer’s disease (AD) blood transcriptomic prediction is sensitive to cohort shift and can be misinterpreted without strict evaluation controls. We present an open reproducible study on GEO cohorts GSE63060 and GSE63061 with three design principles: leakage-safe target holdout evaluation, consistent permutation-null reporting, and explicit biological feature ablations using open AMP-AD Agora nominated targets. Primary arms are target_only, source_only, and pooled source+target raw training; a transductive ComBat arm is reported as sensitivity analysis only. Feature modes are variance, DE t-test, Agora-only, and DE-Agora intersection. Across settings, mean permutation-null AUROC remains near chance (0.4887-0.5132). In primary analyses, target_only exceeds permutation-null means in both directions with multiplicity-controlled significance in multiple settings. Additional local sensitivity checks show that conclusions are model-stable across logistic regression, linear SVM, and random forest for the DE-1000 setting, and that increasing null simulations to 1000 permutations preserves chance-centered null behavior. Conservative conclusion: robust target-domain signal is reproducible, while cross-cohort transfer gains are directional and should be interpreted with explicit batch-policy caveats.
 
 ## 1. Introduction
-Public AD transcriptomic benchmarks can appear strong while still failing key validity checks: leakage-safe boundaries, null calibration consistency, and explicit handling of cross-study harmonization assumptions. This revision focuses on evaluation correctness and claim discipline rather than model novelty.
+Public AD blood transcriptomic resources are valuable for reproducible benchmarking, but cross-cohort evaluation can overstate transferability when leakage controls, null calibration, and harmonization assumptions are not explicit. This work focuses on evaluation rigor and reproducibility, not on proposing a new classifier architecture.
 
-Primary goals:
-1) verify leakage-safe target-domain signal against a consistent permutation null;
-2) quantify directional transfer behavior under source_only and pooled source+target training;
-3) test whether AMP-AD-informed feature restrictions change transfer patterns.
+We address three practical questions:
+1) Does target-domain signal remain above a consistent permutation-null baseline under leakage-safe splits?
+2) Are transfer effects (source_only or pooled source+target training) direction-stable across cohorts?
+3) Do AMP-AD-informed feature restrictions materially change predictive behavior?
 
 ## 2. Data
-### 2.1 Predictive cohorts
-- GSE63060 (GPL6947) and GSE63061 (GPL10558) from NCBI GEO [1,2]
-- AD vs CTL labels only; ambiguous statuses removed
+### 2.1 GEO cohorts
+- GSE63060 and GSE63061 from NCBI GEO [1,2]
+- AD vs CTL labels only; ambiguous status labels excluded
+- Directional setup: GSE63060->GSE63061 and GSE63061->GSE63060
 
-### 2.2 AMP-AD open context and integration
-We ingest open Agora nominated targets [3,4]. In v5, Agora is integrated into modeling through two explicit feature modes:
-- agora_only: probe set restricted to probes mapping to Agora symbols
-- de_agora_intersection: DE-ranked probes restricted to Agora-mapped probes
+### 2.2 AMP-AD open biological context
+We use open Agora nominated targets from AD Knowledge Portal [3,4]. Agora signals are integrated directly into model feature-space ablations (Agora-only and DE-Agora intersection), rather than treated only as narrative context.
 
 ## 3. Methods
-### 3.1 Leakage-safe primary arms
-For each direction (A->B and B->A), using target holdout split (stratified, random_state=42):
-- target_only: train on target-train, test on target-test
-- source_only: train on source, test on target-test
-- source_plus_target_raw: train on source + target-train, test on target-test
+### 3.1 Primary leakage-safe protocol
+For each direction, target cohort is split into target-train/target-test (stratified, random_state=42). Primary arms:
+- target_only: train on target-train, evaluate on target-test
+- source_only: train on source cohort, evaluate on target-test
+- source_plus_target_raw: train on concatenated source + target-train, evaluate on target-test
 
-### 3.2 Transductive sensitivity arm (not primary)
-- source_plus_target_combat_transductive: ComBat on stacked train+test features (no labels), then model fit/eval.
-This arm is reported as sensitivity only and excluded from leakage-safe primary claims.
+No target-test labels are used in feature selection, model fitting, or null generation.
+
+### 3.2 Sensitivity arm (not primary evidence)
+- source_plus_target_combat_transductive: ComBat applied on stacked train+test features (no labels) prior to fitting.
+This arm is retained to quantify harmonization sensitivity but is excluded from primary leakage-safe claims.
 
 ### 3.3 Feature modes
 - var: top-N variance probes
-- de_ttest: top-N absolute t-statistic probes (AD vs CTL on target-train only)
-- agora_only: top-N probes from Agora-mapped subset
-- de_agora_intersection: top-N DE probes within the overlap of DE-ranked and Agora-mapped probes
+- de_ttest: top-N probes by absolute AD-vs-CTL t-statistic on target-train only [8]
+- agora_only: top-N probes mapped to Agora nominated symbols
+- de_agora_intersection: top-N DE-ranked probes within the Agora-mapped subset
 
 N in {200, 1000}.
 
-### 3.4 Null policy (v5 consistency fix)
-Primary null is the distribution of AUROC values from 100 label-permuted training runs per setting. Reported null in tables is the mean of that permutation-AUROC distribution (not AUROC of averaged probabilities).
+### 3.4 Null definition and consistency policy
+Primary null is the distribution of AUROC values from label-permuted target-train models (100 permutations per setting in main benchmark). The null reported in primary tables is the mean of this permutation-AUROC distribution. This avoids mixing incomparable null definitions across sections.
 
-### 3.5 Model and inference
-Class-balanced logistic regression (liblinear) with median imputation and scaling. We report AUROC as primary metric; paired bootstrap deltas for arm-vs-arm comparisons; BH correction for multiplicity [5,6].
+### 3.5 Statistical inference
+- AUROC (primary), AUPRC, balanced accuracy, Brier
+- Bootstrap CIs for AUROC [5]
+- Paired bootstrap deltas for arm comparisons
+- Benjamini-Hochberg multiplicity control [6]
+
+### 3.6 Additional local sensitivity experiments
+To address scope concerns, we add two local sensitivity checks:
+1) Model-family sensitivity (DE-1000 target_only): logistic regression, linear SVM [9], random forest [10].
+2) Null-stability sensitivity: 1000 permutations (DE-1000, both directions).
 
 \newpage
 
 ## 4. Results
-### 4.1 DE feature setting (top 200/1000)
+### 4.1 Primary DE setting (top 200/1000)
 
 | Direction | Top genes | target_only | source_only | source+target raw | null (perm mean AUROC) |
 |---|---:|---:|---:|---:|---:|
@@ -60,7 +69,9 @@ Class-balanced logistic regression (liblinear) with median imputation and scalin
 | GSE63061->GSE63060 | 200  | 0.8453 | 0.8365 | 0.9003 | 0.4887 |
 | GSE63061->GSE63060 | 1000 | 0.8908 | 0.8636 | 0.9120 | 0.4961 |
 
-### 4.2 AMP-AD integration settings
+Target-domain signal remains clearly above chance-centered nulls. Transfer uplift exists but is directional.
+
+### 4.2 AMP-AD feature ablations
 
 | Direction | Feature mode | Top genes | target_only | null (perm mean AUROC) | Delta (target-null) |
 |---|---|---:|---:|---:|---:|
@@ -69,26 +80,40 @@ Class-balanced logistic regression (liblinear) with median imputation and scalin
 | GSE63061->GSE63060 | agora_only | 200  | 0.8732 | 0.4927 | +0.3804 |
 | GSE63061->GSE63060 | de_agora_intersection | 200  | 0.8952 | 0.4971 | +0.3981 |
 
-### 4.3 Statistical highlights
-- target_only_vs_null_perm_mean remains significant (BH<0.05) across multiple settings in both directions.
-- In DE-1000, source_plus_target_raw_vs_target_only is positive and significant in GSE63060->GSE63061.
-- Transductive ComBat sensitivity can improve some settings, but because it uses stacked train+test features, it is not used for leakage-safe primary claims.
+Agora-constrained feature spaces retain measurable signal, though performance varies by direction and feature policy.
 
-### 4.4 Null calibration check
-Across all analyzed settings, permutation-null AUROC means fall in 0.4887-0.5132, matching chance-level expectations and removing prior table/text inconsistency.
+### 4.3 Model-family sensitivity (local)
+DE-1000 target_only AUROC:
+
+| Direction | Logistic regression | Linear SVM | Random forest |
+|---|---:|---:|---:|
+| GSE63060->GSE63061 | 0.6958 | 0.6940 | 0.7277 |
+| GSE63061->GSE63060 | 0.8908 | 0.8842 | 0.8761 |
+
+The central conclusion (signal above null, directional transfer behavior) is stable across model families.
+
+### 4.4 Null-stability sensitivity (1000 permutations, DE-1000)
+
+| Direction | Null mean AUROC | Null SD | q05 | q95 |
+|---|---:|---:|---:|---:|
+| GSE63060->GSE63061 | 0.5006 | 0.0729 | 0.3821 | 0.6143 |
+| GSE63061->GSE63060 | 0.4947 | 0.0888 | 0.3489 | 0.6452 |
+
+Increasing null simulations to 1000 preserves chance-centered behavior and supports calibration robustness.
 
 ## 5. Discussion
-v5 resolves two central validity issues from prior review cycles:
-1) null reporting is now internally consistent (single primary null definition);
-2) ComBat outcomes are clearly separated into transductive sensitivity analysis rather than primary leakage-safe evidence.
+Three findings are robust across this benchmark:
+1) Leakage-safe target-domain signal is reproducibly above permutation-null baselines.
+2) Cross-cohort transfer effects are directional and not universally positive.
+3) Biological feature restrictions (Agora-only and DE-Agora intersection) remain informative but do not remove directional sensitivity.
 
-The core signal remains: target-domain AD prediction exceeds permutation null under strict split discipline. Transfer effects are directional and feature-mode dependent, so broad universal transfer claims remain unwarranted.
+The transductive ComBat arm can be informative for sensitivity analysis, but should not be used as primary leakage-safe evidence because it uses stacked train+test features.
 
 ## 6. Limitations
-This benchmark uses two cohorts and one baseline model family. Probe-to-symbol mapping for Agora integration depends on public platform annotations and may introduce mapping incompleteness. Non-transductive harmonization methods with guaranteed train-only parameterization should be evaluated in future versions.
+This study still uses two cohorts and moderate sample sizes. Main benchmark null estimation uses 100 permutations per setting; we therefore include explicit 1000-permutation stability checks for a representative DE-1000 setting. External prospective validation and additional harmonization strategies with strict train-only parameterization remain future work.
 
 ## 7. Conclusion
-In this open v5 benchmark, leakage-safe target-domain signal is reproducibly above a consistent permutation-null baseline. AMP-AD-integrated feature modes are now part of the predictive experiment space, and transfer gains remain context-specific rather than universal. Transductive ComBat results are reported as sensitivity only.
+A reproducible leakage-safe evaluation pipeline on open AD blood transcriptomic cohorts shows stable target-domain signal above chance, with transfer gains that are conditional on direction and feature policy. Consistent null definitions and explicit sensitivity analyses improve interpretability and reduce claim inflation in cross-cohort settings.
 
 ## 8. Reproducibility
 Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea
@@ -96,7 +121,9 @@ Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea
 Run sequence:
 1) `python src/train/run_open_phaseA_benchmark.py`
 2) `python src/eval/compute_open_phaseA_bootstrap.py`
-3) `python src/ingest/fetch_ampad_open_subset.py`
+3) `python src/eval/model_family_sensitivity.py`
+4) `python src/eval/null_stability_check.py`
+5) `python src/ingest/fetch_ampad_open_subset.py`
 
 Core outputs:
 - `outputs/metrics/open_phaseA_main_results.csv`
@@ -104,6 +131,8 @@ Core outputs:
 - `outputs/stats/open_phaseA_null_distribution.csv`
 - `outputs/stats/open_phaseA_auroc_ci.csv`
 - `outputs/stats/open_phaseA_paired_tests.csv`
+- `outputs/stats/open_phaseA_model_family_sensitivity.csv`
+- `outputs/stats/open_phaseA_null_stability_de1000_perm1000.csv`
 - `outputs/stats/open_phaseA_stats.json`
 - `outputs/open_phaseA_data_manifest.json`
 
@@ -123,3 +152,7 @@ Core outputs:
 [7] W. E. Johnson, C. Li, and A. Rabinovic, “Adjusting batch effects in microarray expression data using empirical Bayes methods,” Biostatistics, 8(1):118-127, 2007. doi:10.1093/biostatistics/kxj037.
 
 [8] G. K. Smyth, “Linear models and empirical bayes methods for assessing differential expression in microarray experiments,” Stat Appl Genet Mol Biol, 3:Article3, 2004. doi:10.2202/1544-6115.1027.
+
+[9] C. Cortes and V. Vapnik, “Support-vector networks,” Machine Learning, 20:273-297, 1995. doi:10.1007/BF00994018.
+
+[10] L. Breiman, “Random forests,” Machine Learning, 45:5-32, 2001. doi:10.1023/A:1010933404324.
