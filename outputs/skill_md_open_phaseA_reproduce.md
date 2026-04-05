@@ -20,6 +20,16 @@ This skill reproduces:
 - Expected outputs and sanity-check values are listed below.
 - If exact floating values vary slightly by platform, use tolerance checks (abs error <= 1e-6 to 1e-3 depending on metric).
 
+## 0) Clone the exact artifact repository
+
+```bash
+git clone https://github.com/githubbermoon/bio-paper-track-open-phasea.git
+cd bio-paper-track-open-phasea
+git checkout 318df90
+```
+
+Why this matters: reviewers can inspect exactly what `run_open_phaseA_benchmark.py`, `compute_open_phaseA_bootstrap.py`, and `fetch_ampad_open_subset.py` do before running anything.
+
 ## 1) Environment
 
 ### Minimum requirements

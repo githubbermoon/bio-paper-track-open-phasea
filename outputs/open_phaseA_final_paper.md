@@ -123,6 +123,8 @@ In this open Phase-A benchmark, leakage-safe target-domain AD prediction demonst
 The main contribution is therefore methodological and evidential: a conservative, reproducibility-first benchmark that separates supported claims from overreach using explicit controls, bootstrap uncertainty, and FDR-corrected inference. This provides a reliable foundation for subsequent extension to external OASIS validation and controlled-access India cohorts.
 
 ## 8. Reproducibility
+Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea (commit `318df90`).
+
 Run sequence:
 1) `python src/train/run_open_phaseA_benchmark.py`  
 2) `python src/eval/compute_open_phaseA_bootstrap.py`  
