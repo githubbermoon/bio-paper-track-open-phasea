@@ -26,8 +26,8 @@
     "de_ttest",
     "agora_only",
     "de_agora_intersection",
-    "de_batch_robust",
-    "de_batch_robust_v2"
+    "static_bdpfs",
+    "adaptive_bdpfs"
   ],
   "agora_unique_symbols": 955,
   "null_policy": "1000x label permutations (Consensus Submission Rigor); primary null reported as mean permutation AUROC",

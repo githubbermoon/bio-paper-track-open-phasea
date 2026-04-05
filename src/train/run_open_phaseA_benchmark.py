@@ -280,9 +280,9 @@ def _select_top_genes(
         s = var_score[var_score.index.isin(agora_probe_set)]
     elif mode == "de_agora_intersection":
         s = de_score[de_score.index.isin(agora_probe_set)]
-    elif mode == "de_batch_robust":
+    elif mode in ["de_batch_robust", "static_bdpfs"]:
         s = de_score[de_score.index.isin(robust_features)]
-    elif mode == "de_batch_robust_v2":
+    elif mode in ["de_batch_robust_v2", "adaptive_bdpfs"]:
         if v2_weighted_de is not None:
             s = v2_weighted_de
         else:
@@ -438,7 +438,7 @@ def run() -> None:
     null_rows = []
     stats: dict[str, dict[str, float | int | str]] = {}
 
-    feature_modes = ["var", "de_ttest", "agora_only", "de_agora_intersection", "de_batch_robust", "de_batch_robust_v2"]
+    feature_modes = ["var", "de_ttest", "agora_only", "de_agora_intersection", "static_bdpfs", "adaptive_bdpfs"]
 
     agora_probe_set_global = set()
 
@@ -483,18 +483,18 @@ def run() -> None:
                 z_g = (g_s - g_s.mean()) / g_s.std()
                 z_d = (d_s - d_s.mean()) / d_s.std()
 
-                # ── v1: Original BDP-FS (equal weight, hard 80th percentile) ──
+                # ── Static BDP-FS (v1): Original BDP-FS (equal weight, hard 80th percentile) ──
                 distortion_scores = (z_g.abs() + z_d.abs()).fillna(0)
                 threshold = distortion_scores.quantile(0.80)
                 robust_features = distortion_scores[distortion_scores <= threshold].index
 
                 agora_probe_set = {g for g in common if g.upper() in agora_symbols}
 
-                # ── v2: BDP-FS Adaptive Masterpiece (GMM-Anchored Soft Weighting) ──
+                # ── Adaptive BDP-FS (v2): GMM-Anchored Soft Weighting ──
                 ALPHA = 0.2  # Asymmetric Composition: Penalize variance 4x more than mean
                 distortion_v2 = (ALPHA * z_g.abs() + (1 - ALPHA) * z_d.abs()).fillna(0)
 
-                # Agora Shield: discount penalty for nominated targets
+                # Biologically-informed weight discounting: discount penalty for nominated targets
                 agora_mask = distortion_v2.index.isin(agora_probe_set)
                 distortion_v2[agora_mask] = distortion_v2[agora_mask] * 0.5
 
@@ -577,7 +577,7 @@ def run() -> None:
                 for i, auc in enumerate(null_aucs):
                     null_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "perm_index": i, "null_perm_auroc": float(auc)})
 
-                # Agora Shield Proof: count of genes where (unshielded > v1_thresh) but (shielded <= v1_thresh)
+                # Biologically-informed weight discounting proof: count of genes where (unshielded > static_thresh) but (adaptive_shielded <= static_thresh)
                 rescued_agora = int(((distortion_scores > threshold) & (distortion_v2 <= threshold) & distortion_v2.index.isin(agora_probe_set)).sum())
 
                 key = f"{feature_mode}__{source_label}_to_{target_label}_top{top_n}"
@@ -592,7 +592,7 @@ def run() -> None:
                     "null_perm_auroc_std": float(np.std(null_aucs)),
                     "null_perm_auroc_q05": null_q05, "null_perm_auroc_q95": null_q95,
                     "p_target_gt_null_perm": p_target_vs_null,
-                    "agora_genes_rescued_by_v2_shield": rescued_agora,
+                    "agora_genes_preserved_by_adaptive_weighting": rescued_agora,
                 }
 
     out_metrics.parent.mkdir(parents=True, exist_ok=True)

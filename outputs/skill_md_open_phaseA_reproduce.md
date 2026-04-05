@@ -1,12 +1,10 @@
----
-name: bdpfs-v2-repro
-description: Reproduce BDP-FS v2 (GMM-Soft) cross-cohort AD prediction with 1,000 permutations and Agora Shield validation.
+name: bdpfs-adaptive-repro
+description: Reproduce Adaptive BDP-FS (GMM-regularized) cross-cohort AD prediction with 1,000 permutations and biological target preservation validation.
 allowed-tools: Bash(git *), Bash(cd *), Bash(python *), Bash(pip *), WebFetch
----
 
-# Reproducibility: Skill File
+# Reproducibility Manifest
 
-This skill reproduces the "Masterpiece" findings of the BDP-FS v2 framework, specifically the +0.009 AUROC lift (61->60) and the +0.10 lift (60->61 Top-200) enabled by the Agora Shield rescue mechanism.
+This manifest facilitates the exact reconstruction of the reported findings, including the predictive gains in the GSE63061$\to$GSE63060 direction and the biological target preservation metrics enabled by GMM-anchored regularization.
 
 ### ⏳ Timing & Resources
 | Operation | Est. Time | Resource |
@@ -42,8 +40,8 @@ stats = json.loads(Path('outputs/stats/open_phaseA_stats.json').read_text())
 n_perm = stats['de_ttest__GSE63060_to_GSE63061_top1000']['null_perm_n']
 rescued = stats['de_batch_robust_v2__GSE63060_to_GSE63061_top200']['agora_genes_rescued_by_v2_shield']
 
-print(f"RIGOR_STATUS: {n_perm} permutations")
-print(f"RESCUE_STATUS: {rescued} targets preserved")
+print(f"STATISTICAL_RIGOR: {n_perm} permutations")
+print(f"BIOLOGICAL_TARGET_SAFETY: {rescued} targets preserved")
 
 assert n_perm == 1000
 assert rescued == 164

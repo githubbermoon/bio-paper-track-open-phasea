@@ -14,7 +14,7 @@
     "null_perm_auroc_q05": 0.3892559523809524,
     "null_perm_auroc_q95": 0.6113690476190476,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
   "var__GSE63060_to_GSE63061_top1000": {
     "feature_mode": "var",
@@ -31,7 +31,7 @@
     "null_perm_auroc_q05": 0.3874702380952382,
     "null_perm_auroc_q95": 0.613095238095238,
     "p_target_gt_null_perm": 0.002,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
   "de_ttest__GSE63060_to_GSE63061_top200": {
     "feature_mode": "de_ttest",
@@ -48,7 +48,7 @@
     "null_perm_auroc_q05": 0.39583333333333337,
     "null_perm_auroc_q95": 0.6101190476190476,
     "p_target_gt_null_perm": 0.003,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
   "de_ttest__GSE63060_to_GSE63061_top1000": {
     "feature_mode": "de_ttest",
@@ -65,7 +65,7 @@
     "null_perm_auroc_q05": 0.38389880952380956,
     "null_perm_auroc_q95": 0.6155357142857143,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
   "agora_only__GSE63060_to_GSE63061_top200": {
     "feature_mode": "agora_only",
@@ -82,7 +82,7 @@
     "null_perm_auroc_q05": 0.39223214285714286,
     "null_perm_auroc_q95": 0.6066369047619048,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
   "agora_only__GSE63060_to_GSE63061_top1000": {
     "feature_mode": "agora_only",
@@ -99,7 +99,7 @@
     "null_perm_auroc_q05": 0.3975892857142857,
     "null_perm_auroc_q95": 0.5982142857142857,
     "p_target_gt_null_perm": 0.001,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
   "de_agora_intersection__GSE63060_to_GSE63061_top200": {
     "feature_mode": "de_agora_intersection",
@@ -116,7 +116,7 @@
     "null_perm_auroc_q05": 0.3916666666666667,
     "null_perm_auroc_q95": 0.6226785714285714,
     "p_target_gt_null_perm": 0.13,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
   "de_agora_intersection__GSE63060_to_GSE63061_top1000": {
     "feature_mode": "de_agora_intersection",
@@ -133,10 +133,10 @@
     "null_perm_auroc_q05": 0.3975892857142857,
     "null_perm_auroc_q95": 0.5982142857142857,
     "p_target_gt_null_perm": 0.001,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
-  "de_batch_robust__GSE63060_to_GSE63061_top200": {
-    "feature_mode": "de_batch_robust",
+  "static_bdpfs__GSE63060_to_GSE63061_top200": {
+    "feature_mode": "static_bdpfs",
     "source": "GSE63060",
     "target": "GSE63061",
     "top_n_genes": 200,
@@ -150,10 +150,10 @@
     "null_perm_auroc_q05": 0.39821428571428574,
     "null_perm_auroc_q95": 0.6041964285714286,
     "p_target_gt_null_perm": 0.002,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
-  "de_batch_robust__GSE63060_to_GSE63061_top1000": {
-    "feature_mode": "de_batch_robust",
+  "static_bdpfs__GSE63060_to_GSE63061_top1000": {
+    "feature_mode": "static_bdpfs",
     "source": "GSE63060",
     "target": "GSE63061",
     "top_n_genes": 1000,
@@ -167,10 +167,10 @@
     "null_perm_auroc_q05": 0.3827083333333333,
     "null_perm_auroc_q95": 0.6125595238095237,
     "p_target_gt_null_perm": 0.001,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
-  "de_batch_robust_v2__GSE63060_to_GSE63061_top200": {
-    "feature_mode": "de_batch_robust_v2",
+  "adaptive_bdpfs__GSE63060_to_GSE63061_top200": {
+    "feature_mode": "adaptive_bdpfs",
     "source": "GSE63060",
     "target": "GSE63061",
     "top_n_genes": 200,
@@ -184,10 +184,10 @@
     "null_perm_auroc_q05": 0.3933928571428572,
     "null_perm_auroc_q95": 0.611904761904762,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
-  "de_batch_robust_v2__GSE63060_to_GSE63061_top1000": {
-    "feature_mode": "de_batch_robust_v2",
+  "adaptive_bdpfs__GSE63060_to_GSE63061_top1000": {
+    "feature_mode": "adaptive_bdpfs",
     "source": "GSE63060",
     "target": "GSE63061",
     "top_n_genes": 1000,
@@ -201,7 +201,7 @@
     "null_perm_auroc_q05": 0.3910119047619048,
     "null_perm_auroc_q95": 0.6155059523809524,
     "p_target_gt_null_perm": 0.001,
-    "agora_genes_rescued_by_v2_shield": 164
+    "agora_genes_preserved_by_adaptive_weighting": 164
   },
   "var__GSE63061_to_GSE63060_top200": {
     "feature_mode": "var",
@@ -218,7 +218,7 @@
     "null_perm_auroc_q05": 0.36066715542521993,
     "null_perm_auroc_q95": 0.637866568914956,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
   "var__GSE63061_to_GSE63060_top1000": {
     "feature_mode": "var",
@@ -235,7 +235,7 @@
     "null_perm_auroc_q05": 0.3562683284457478,
     "null_perm_auroc_q95": 0.6474340175953078,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
   "de_ttest__GSE63061_to_GSE63060_top200": {
     "feature_mode": "de_ttest",
@@ -252,7 +252,7 @@
     "null_perm_auroc_q05": 0.3548387096774194,
     "null_perm_auroc_q95": 0.6423020527859237,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
   "de_ttest__GSE63061_to_GSE63060_top1000": {
     "feature_mode": "de_ttest",
@@ -269,7 +269,7 @@
     "null_perm_auroc_q05": 0.3561950146627566,
     "null_perm_auroc_q95": 0.6429985337243402,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
   "agora_only__GSE63061_to_GSE63060_top200": {
     "feature_mode": "agora_only",
@@ -286,7 +286,7 @@
     "null_perm_auroc_q05": 0.36656891495601174,
     "null_perm_auroc_q95": 0.635007331378299,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
   "agora_only__GSE63061_to_GSE63060_top1000": {
     "feature_mode": "agora_only",
@@ -303,7 +303,7 @@
     "null_perm_auroc_q05": 0.35997067448680353,
     "null_perm_auroc_q95": 0.6326979472140762,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
   "de_agora_intersection__GSE63061_to_GSE63060_top200": {
     "feature_mode": "de_agora_intersection",
@@ -320,7 +320,7 @@
     "null_perm_auroc_q05": 0.36059384164222874,
     "null_perm_auroc_q95": 0.638599706744868,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
   "de_agora_intersection__GSE63061_to_GSE63060_top1000": {
     "feature_mode": "de_agora_intersection",
@@ -337,10 +337,10 @@
     "null_perm_auroc_q05": 0.35997067448680353,
     "null_perm_auroc_q95": 0.6326979472140762,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
-  "de_batch_robust__GSE63061_to_GSE63060_top200": {
-    "feature_mode": "de_batch_robust",
+  "static_bdpfs__GSE63061_to_GSE63060_top200": {
+    "feature_mode": "static_bdpfs",
     "source": "GSE63061",
     "target": "GSE63060",
     "top_n_genes": 200,
@@ -354,10 +354,10 @@
     "null_perm_auroc_q05": 0.35186950146627566,
     "null_perm_auroc_q95": 0.6356671554252199,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
-  "de_batch_robust__GSE63061_to_GSE63060_top1000": {
-    "feature_mode": "de_batch_robust",
+  "static_bdpfs__GSE63061_to_GSE63060_top1000": {
+    "feature_mode": "static_bdpfs",
     "source": "GSE63061",
     "target": "GSE63060",
     "top_n_genes": 1000,
@@ -371,10 +371,10 @@
     "null_perm_auroc_q05": 0.35117302052785926,
     "null_perm_auroc_q95": 0.6458944281524927,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
-  "de_batch_robust_v2__GSE63061_to_GSE63060_top200": {
-    "feature_mode": "de_batch_robust_v2",
+  "adaptive_bdpfs__GSE63061_to_GSE63060_top200": {
+    "feature_mode": "adaptive_bdpfs",
     "source": "GSE63061",
     "target": "GSE63060",
     "top_n_genes": 200,
@@ -388,10 +388,10 @@
     "null_perm_auroc_q05": 0.37679618768328443,
     "null_perm_auroc_q95": 0.6276759530791788,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   },
-  "de_batch_robust_v2__GSE63061_to_GSE63060_top1000": {
-    "feature_mode": "de_batch_robust_v2",
+  "adaptive_bdpfs__GSE63061_to_GSE63060_top1000": {
+    "feature_mode": "adaptive_bdpfs",
     "source": "GSE63061",
     "target": "GSE63060",
     "top_n_genes": 1000,
@@ -405,6 +405,6 @@
     "null_perm_auroc_q05": 0.3664589442815249,
     "null_perm_auroc_q95": 0.6334677419354838,
     "p_target_gt_null_perm": 0.0,
-    "agora_genes_rescued_by_v2_shield": 148
+    "agora_genes_preserved_by_adaptive_weighting": 148
   }
 }
