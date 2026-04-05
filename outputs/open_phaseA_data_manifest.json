@@ -26,9 +26,10 @@
     "de_ttest",
     "agora_only",
     "de_agora_intersection",
-    "de_batch_robust"
+    "de_batch_robust",
+    "de_batch_robust_v2"
   ],
   "agora_unique_symbols": 955,
-  "null_policy": "100x label permutations; primary null reported as mean permutation AUROC",
+  "null_policy": "1000x label permutations (Consensus Submission Rigor); primary null reported as mean permutation AUROC",
   "batch_harmonization": "ComBat neuroCombat train-fit/test-apply arm (frozen training estimates) used as leakage-safe primary arm"
 }

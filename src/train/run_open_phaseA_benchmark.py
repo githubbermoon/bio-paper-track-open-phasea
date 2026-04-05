@@ -373,7 +373,7 @@ def _null_distribution(
     ytr: pd.Series,
     Xte: pd.DataFrame,
     yte: pd.Series,
-    n_perm: int = 100,
+    n_perm: int = 1000,
 ) -> tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(SEED)
     aucs = []
@@ -563,19 +563,22 @@ def run() -> None:
                 for sid, yt_i, pr_i in zip(Xte_cb.index, yte.values, p_combo_cb):
                     pred_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "arm": "source_plus_target_combat_trainfit", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
 
-                # null distribution
-                null_aucs, p_null_avg = _null_distribution(Xtr_t[genes_target], ytr, Xte_t[genes_target], yte, n_perm=100)
+                # null distribution (Submission Rigor: 1,000 permutations)
+                null_aucs, p_null_avg = _null_distribution(Xtr_t[genes_target], ytr, Xte_t[genes_target], yte, n_perm=1000)
                 null_mean = float(np.mean(null_aucs))
                 null_q05 = float(np.quantile(null_aucs, 0.05))
                 null_q95 = float(np.quantile(null_aucs, 0.95))
 
                 rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_target), "arm": "null_label_permutation_mean_auroc", "auroc": null_mean, "auprc": np.nan, "balanced_accuracy": np.nan, "brier": np.nan})
-                rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_target), "arm": "null_label_permutation_avg100_prob", **_metrics(yte.values, p_null_avg)})
+                rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "selected_gene_count": len(genes_target), "arm": "null_label_permutation_avg1000_prob", **_metrics(yte.values, p_null_avg)})
                 for sid, yt_i, pr_i in zip(Xte_t[genes_target].index, yte.values, p_null_avg):
-                    pred_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "arm": "null_label_permutation_avg100_prob", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
+                    pred_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "arm": "null_label_permutation_avg1000_prob", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
 
                 for i, auc in enumerate(null_aucs):
                     null_rows.append({"source": source_label, "target": target_label, "feature_mode": feature_mode, "top_n_genes": top_n, "perm_index": i, "null_perm_auroc": float(auc)})
+
+                # Agora Shield Proof: count of genes where (unshielded > v1_thresh) but (shielded <= v1_thresh)
+                rescued_agora = int(((distortion_scores > threshold) & (distortion_v2 <= threshold) & distortion_v2.index.isin(agora_probe_set)).sum())
 
                 key = f"{feature_mode}__{source_label}_to_{target_label}_top{top_n}"
                 p_target_vs_null = float((null_aucs >= m_target["auroc"]).mean())
@@ -589,6 +592,7 @@ def run() -> None:
                     "null_perm_auroc_std": float(np.std(null_aucs)),
                     "null_perm_auroc_q05": null_q05, "null_perm_auroc_q95": null_q95,
                     "p_target_gt_null_perm": p_target_vs_null,
+                    "agora_genes_rescued_by_v2_shield": rescued_agora,
                 }
 
     out_metrics.parent.mkdir(parents=True, exist_ok=True)
@@ -607,7 +611,7 @@ def run() -> None:
         "cached_files": [str(p) for p in sorted(raw_dir.glob("*.gz"))],
         "feature_modes": feature_modes,
         "agora_unique_symbols": int(len(agora_symbols)),
-        "null_policy": "100x label permutations; primary null reported as mean permutation AUROC",
+        "null_policy": "1000x label permutations (Consensus Submission Rigor); primary null reported as mean permutation AUROC",
         "batch_harmonization": "ComBat neuroCombat train-fit/test-apply arm (frozen training estimates) used as leakage-safe primary arm",
     }
     out_manifest.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
