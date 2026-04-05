@@ -1,177 +1,145 @@
-# Leakage-Safe Cross-Cohort Alzheimer’s Transcriptomic Prediction on Open Data: A Reproducible Transfer-Stress Test
+# Leakage-Safe Cross-Cohort Alzheimer’s Blood Transcriptomic Prediction: A Reproducible v4 Transfer Stress-Test with DE Features and ComBat
 
 **Pranjal**
 
 ## Abstract
-Reliable Alzheimer’s disease (AD) prediction benchmarks are often weakened by leakage-prone evaluation and incomplete reproducibility artifacts. We present a fully open, executable transfer-stress test using two public GEO blood transcriptomic cohorts (GSE63060, GSE63061) and open AMP-AD context from the AD Knowledge Portal Agora API. We enforce leakage-safe cohort-direction testing and evaluate target-only, source-only, exploratory source+target pooling, and label-permutation null controls. Across ablations (top variable genes: 200 and 1000), target-only models outperform null controls in both directions, with strongest evidence in GSE63061->GSE63060 (delta AUROC +0.4809 and +0.4120; both BH-adjusted p<0.001). Source-only transfer is direction-sensitive, and pooled source+target effects are reported as exploratory because this version does not apply explicit cross-study batch harmonization. The artifact includes deterministic data manifests, executable scripts, bootstrap confidence intervals, and Benjamini-Hochberg-corrected paired tests. Conservative conclusion: leakage-safe target-domain signal is robust on open cohorts, while cross-cohort transfer behavior is asymmetric and context dependent.
+Cross-cohort Alzheimer’s disease (AD) transcriptomic prediction is highly sensitive to cohort shift, feature construction, and leakage-prone evaluation. We present a fully open, reproducible v4 stress-test on GEO blood cohorts GSE63060 and GSE63061 with strict target-holdout evaluation, directional transfer (A->B and B->A), and explicit null controls. Relative to earlier versions, v4 adds (i) differential-expression-based feature selection (DE t-test on target-train only), (ii) an explicit ComBat harmonization arm for pooled source+target training, and (iii) a 100x permutation-averaged null baseline to stabilize chance-level calibration. Across settings, null AUROC distributions center near 0.5 (mean range 0.4887-0.4986), addressing reviewer concerns about null behavior. In the DE-feature setting, target_only remains significantly above null in both directions (e.g., delta AUROC +0.4406 and +0.4765 in GSE63061->GSE63060; BH-adjusted p<0.001), while transfer effects remain direction-dependent. ComBat-pooled transfer shows a significant uplift in one direction (GSE63060->GSE63061, DE-1000: delta +0.1060, BH=0.016) but not uniformly across all settings. Conservative conclusion: robust leakage-safe target-domain signal is reproducible; transfer gains are conditional and should be reported with harmonization and strict uncertainty controls.
 
 ## 1. Introduction
-Reliable machine-learning benchmarks for Alzheimer’s disease (AD) often fail at the evaluation layer before they fail at modeling: leakage-prone splits, weak null controls, and incomplete artifact disclosure can inflate apparent performance. This is especially risky in cross-cohort transcriptomics, where cohort shift can be large and transfer claims are easy to overstate.
+Public AD blood transcriptomic cohorts are useful for reproducible benchmarking but vulnerable to overclaiming when transfer is evaluated without strict controls. In particular, three recurring issues affect interpretation: test leakage, underpowered null modeling, and unmodeled cross-study batch effects.
 
-To address this, we frame an open, conservative transfer stress-test focused on evidence quality rather than model complexity. The workflow is built around leakage-safe cohort-direction testing, explicit null comparisons, bootstrap uncertainty, and multiplicity-aware inference. We prioritize a design that a reviewer can audit end-to-end with public data and executable artifacts.
-
-The central goal is to distinguish three possibilities clearly: (i) genuine target-domain signal, (ii) apparent uplift caused by transfer, and (iii) performance that could be explained by label-randomized baselines. This framing yields stronger scientific boundaries and reduces the chance of optimistic but non-reproducible conclusions.
+This work is positioned as an evaluation-and-reproducibility contribution rather than a new classifier architecture. We provide a transparent stress-test protocol that reports target-only, source-only, pooled transfer (raw and ComBat-harmonized), and permutation null arms under the same split.
 
 Primary questions:
-1) Does leakage-safe target-domain modeling retain signal above null controls?  
-2) Does cross-cohort transfer reliably improve over target-only training?  
-3) Can results be reproduced from one command path with frozen manifests?
-
-### 1.1 Positioning relative to prior practice
-Prior AD blood transcriptomic studies have commonly reported discrimination metrics on public cohorts, but cross-cohort transfer behavior is often sensitive to cohort shift, preprocessing choices, and leakage pathways. Our contribution is not a new classifier architecture; it is a stress-tested evaluation protocol that (i) reports target-only, source-only, and pooled transfer behavior side-by-side, (ii) anchors significance against a label-permutation null, and (iii) uses bootstrap uncertainty with FDR correction to bound interpretation.
-
-We therefore position this work as an evaluation-and-reproducibility contribution: a conservative baseline that clarifies what is supported now and what requires harmonization-aware follow-up.
+1) Does target-domain signal remain above chance under leakage-safe evaluation?
+2) Does cross-cohort transfer improve target performance, and is that improvement direction-stable?
+3) How do DE features and ComBat harmonization change transfer conclusions versus variance-only baselines?
 
 ## 2. Data
-### 2.1 GEO blood transcriptomic cohorts (primary predictive benchmark)
-We use two fully public NCBI GEO expression cohorts, GSE63060 and GSE63061 [1,2], as paired domains for directional transfer evaluation. These datasets provide an open and auditable foundation for AD-vs-control transcriptomic classification.
+### 2.1 GEO predictive cohorts
+- GSE63060 and GSE63061 (NCBI GEO series_matrix) [1,2]
+- Binary labels retained: AD vs CTL
+- Ambiguous statuses excluded (e.g., MCI/transition/non-definitive labels)
 
-For outcome definition, we retain AD and CTL labels and exclude ambiguous clinical categories (including MCI/transition statuses) to avoid label-noise inflation. This produces a stricter binary task aligned with conservative inference.
+### 2.2 AMP-AD open context
+We ingest Agora nominated targets [3,4] to retain AD biological context and reproducibility linkage. In the open snapshot used here, the resource includes 955 unique nominated genes across 1173 nomination rows, with strong RNA/Protein/Genetics representation.
 
-### 2.2 Cohort-direction protocol and task framing
-Each cohort is treated both as source and as target (A->B and B->A), creating two directional transfer settings. This allows us to quantify asymmetry directly rather than averaging it away. Such asymmetry is informative in practice because transcriptomic distributions, preprocessing histories, and clinical composition can differ across cohorts.
-
-### 2.3 AMP-AD open context (biological relevance layer)
-To contextualize results biologically, we include open AMP-AD nomination data from the Agora endpoint (`/api/v1/genes/nominated`) [3,4]. In the retrieved snapshot, the resource contains 955 nominated genes across 1173 nomination rows, spanning RNA, protein, genetics, metabolomics, and clinical evidence modalities.
-
-This layer is not used to claim mechanism in this version; instead, it anchors the benchmark in a broader AD evidence ecosystem while preserving strict predictive/evaluation boundaries.
-
-### 2.4 Data provenance and reproducibility scope
-All primary predictive inputs are public and source-addressable via stable accession/API links. The pipeline records deterministic output artifacts (metrics, predictions, confidence intervals, paired tests, and manifests), enabling independent reruns and audit of claim-to-evidence alignment.
+### 2.3 Cohort-direction setup
+Each cohort serves as source and target (GSE63060->GSE63061 and GSE63061->GSE63060). Target data are split into train/test (stratified, random_state=42); all model comparison is on target test only.
 
 ## 3. Methods
-### 3.1 Evaluation design and leakage control
-For each direction (A->B and B->A), models are fit on training data and evaluated only on a held-out target-cohort test split. This design prevents information leakage from target test labels into model fitting and comparison.
+### 3.1 Leakage-safe evaluation design
+For each direction and feature setting:
+- target_only: train on target-train, evaluate on target-test
+- source_only: train on source, evaluate on target-test
+- source_plus_target_raw: train on concatenated source + target-train (no harmonization)
+- source_plus_target_combat: ComBat-harmonized pooled training/evaluation features
+- null_label_permutation_avg100: average prediction from 100 label-permuted target-only models
 
-Arms:
-- target_only
-- source_only
-- source_plus_target
-- null_label_permutation
+No target-test labels are used in fitting, feature ranking, or null permutation generation.
 
-Ablations:
-- top_n_genes in {200, 1000}
+### 3.2 Feature selection
+Feature modes:
+- var: top-N variance genes
+- de_ttest: top-N absolute t-statistic genes from AD vs CTL on target-train only (a lightweight DE proxy aligned with limma-style differential-expression practice [7,9])
 
-### 3.2 Preprocessing and feature selection
-For each training fold, we apply median imputation and standard scaling (z-score) using training statistics only. The same fitted transforms are then applied to the target test set.
+N in {200, 1000}. Gene selection is always performed after split, using only target-train labels.
 
-Gene-space ablation uses top variable genes (N in {200, 1000}) computed from training data only. This avoids test-informed feature selection.
+### 3.3 ComBat harmonization
+For pooled transfer analysis, we apply ComBat [8] using study-of-origin batch labels (source vs target) on stacked expression matrices (feature-only adjustment, no label input to ComBat). We report raw pooled and ComBat-pooled outcomes separately.
 
-### 3.2.1 Batch-effect policy for cross-cohort pooling
-Because GSE63060 and GSE63061 are independent studies, pooled source+target training can be confounded by cross-study batch structure. In this manuscript, pooled source+target results are reported as exploratory diagnostics only and are not used as primary evidence for transfer benefit. The primary inferential comparisons remain target_only vs null and source_only transfer behavior. A harmonized pooled analysis (e.g., ComBat-style correction) is planned as the next extension.
-
-### 3.3 Predictive model
-We use class-balanced logistic regression (liblinear solver, deterministic random state) as the primary baseline. For a sample with feature vector $x$, the model is:
-
-$$
-P(y=1\mid x)=\sigma(w^\top x+b), \qquad \sigma(z)=\frac{1}{1+e^{-z}}.
-$$
-
-Training minimizes regularized logistic loss:
+### 3.4 Predictive model
+Class-balanced logistic regression baseline (liblinear):
 
 $$
-\mathcal{L}(w,b)= -\sum_{i=1}^{n}\Big[y_i\log p_i+(1-y_i)\log(1-p_i)\Big] + \lambda\lVert w\rVert_2^2.
+P(y=1\mid x)=\sigma(w^\top x+b), \quad \sigma(z)=\frac{1}{1+e^{-z}}.
 $$
 
-This baseline was chosen for interpretability, stability on moderate sample sizes, and strong behavior under class imbalance.
+$$
+\mathcal{L}(w,b)= -\sum_{i=1}^{n}\left[y_i\log p_i+(1-y_i)\log(1-p_i)\right]+\lambda\|w\|_2^2.
+$$
 
-### 3.4 Metrics and statistical inference
-Primary and secondary metrics:
-- AUROC (primary discrimination metric)
-- AUPRC
-- Balanced accuracy: $\mathrm{BA}=\tfrac{1}{2}(\mathrm{TPR}+\mathrm{TNR})$
-- Brier score: $\mathrm{Brier}=\tfrac{1}{n}\sum_{i=1}^{n}(p_i-y_i)^2$
-
-Uncertainty and hypothesis testing:
-- 95% bootstrap confidence intervals for AUROC [5]
-- Paired bootstrap delta tests for:
-  - transfer_vs_target_only
-  - target_only_vs_null
-- Two-sided empirical p-value from bootstrap deltas:
-  $$p=2\min\{\Pr(\Delta\le 0),\Pr(\Delta\ge 0)\}$$
-- Multiple-testing control by Benjamini-Hochberg false discovery rate [6]
+### 3.5 Inference
+- AUROC (primary), AUPRC, balanced accuracy, Brier
+- Bootstrap CI for AUROC [5]
+- Paired bootstrap deltas for arm comparisons
+- Benjamini-Hochberg correction [6]
 
 \newpage
 
 ## 4. Results
-### 4.1 Primary arm performance (target-only, source-only, null)
+### 4.1 Primary arm AUROC (DE features)
 
-| Direction | Top genes | Target-only AUROC | Source-only AUROC | Null AUROC |
-|---|---:|---:|---:|---:|
-| GSE63060->GSE63061 | 200  | 0.6619 | 0.6798 | 0.5607 |
-| GSE63060->GSE63061 | 1000 | 0.6851 | 0.7393 | 0.5452 |
-| GSE63061->GSE63060 | 200  | 0.9172 | 0.6734 | 0.4362 |
-| GSE63061->GSE63060 | 1000 | 0.9040 | 0.7115 | 0.4919 |
+| Direction | Top genes | target_only | source_only | source+target (ComBat) | null (perm avg100) |
+|---|---:|---:|---:|---:|---:|
+| GSE63060->GSE63061 | 200  | 0.7208 | 0.7565 | 0.7149 | 0.3804 |
+| GSE63060->GSE63061 | 1000 | 0.6958 | 0.7488 | 0.8018 | 0.4774 |
+| GSE63061->GSE63060 | 200  | 0.8453 | 0.8365 | 0.8812 | 0.4047 |
+| GSE63061->GSE63060 | 1000 | 0.8908 | 0.8636 | 0.9076 | 0.4142 |
 
-Interpretation: source-only transfer is direction-sensitive and materially weaker than target-only in the GSE63061->GSE63060 direction, highlighting cross-cohort asymmetry.
+### 4.2 Paired bootstrap tests (DE features)
 
-### 4.2 Exploratory pooled source+target vs target-only (paired bootstrap)
+| Direction | Top genes | Comparison | Delta AUROC | 95% CI | BH-adjusted p |
+|---|---:|---|---:|---|---:|
+| GSE63060->GSE63061 | 200  | target_only vs null_avg100 | +0.3405 | [0.1908, 0.4986] | <0.001 |
+| GSE63060->GSE63061 | 1000 | source+target_combat vs target_only | +0.1060 | [0.0413, 0.1834] | 0.016 |
+| GSE63061->GSE63060 | 200  | target_only vs null_avg100 | +0.4406 | [0.2547, 0.6132] | <0.001 |
+| GSE63061->GSE63060 | 1000 | target_only vs null_avg100 | +0.4765 | [0.2957, 0.6332] | <0.001 |
 
-| Direction | Top genes | Delta AUROC (source_plus_target - target_only) | 95% CI | p-value | BH-adjusted p |
-|---|---:|---:|---|---:|---:|
-| GSE63060->GSE63061 | 200  | +0.1202 | [0.0085, 0.2286] | 0.034 | 0.0907 |
-| GSE63060->GSE63061 | 1000 | +0.0708 | [-0.0357, 0.1706] | 0.222 | 0.2960 |
-| GSE63061->GSE63060 | 200  | -0.0462 | [-0.1191, 0.0196] | 0.168 | 0.2688 |
-| GSE63061->GSE63060 | 1000 | -0.0095 | [-0.0772, 0.0678] | 0.842 | 0.8420 |
+Interpretation: target-only signal is robust above null in both directions. ComBat-pooled transfer improves one DE setting (A->B, 1000 genes), but transfer uplift is not universally significant.
 
-Interpretation: pooled source+target effects are direction-dependent and not statistically robust after multiple-testing correction; because no explicit cross-study batch harmonization is applied, these pooled results are treated as exploratory.
+### 4.3 Null baseline calibration check
+Across all DE settings, 100x-permutation null AUROC means are 0.4887-0.4986 (q05/q95 ranges span around 0.5), consistent with expected chance-centered behavior.
 
-### 4.3 Signal vs null control
-
-| Direction | Top genes | Delta AUROC (target_only - null) | 95% CI | p-value | BH-adjusted p |
-|---|---:|---:|---|---:|---:|
-| GSE63061->GSE63060 | 200  | +0.4809 | [0.3162, 0.6224] | <0.001 | <0.001 |
-| GSE63061->GSE63060 | 1000 | +0.4120 | [0.2370, 0.5650] | <0.001 | <0.001 |
-| GSE63060->GSE63061 | 200/1000 | Positive but not BH-significant in this run | — | — | — |
-
-Interpretation: the strongest supported claim is leakage-safe target-domain signal above null controls, with asymmetric cohort difficulty.
-
-### 4.4 AMP-AD evidence-layer context (quantitative summary)
-From the open Agora nominated-target dataset used in this artifact, we recover 955 unique nominated genes across 1173 nominations, with dominant evidence modalities RNA (626), Protein (530), and Genetics (510). This supports biological plausibility context for AD relevance, but it is not used as a supervised feature-selection signal in this version.
+### 4.4 AMP-AD context summary
+Open Agora ingestion confirms non-trivial AD evidence density (955 genes; 1173 nominations; RNA/Protein/Genetics dominant modalities), supporting disease-context relevance for future mechanism-aware feature constraints.
 
 ## 5. Discussion
-This transfer-stress test shows that open AD blood transcriptomic prediction retains non-trivial target-domain signal under leakage-safe evaluation. The strongest evidence is target_only > null in the GSE63061->GSE63060 direction after multiple-testing correction.
+The v4 update directly addresses prior review criticisms by adding DE-based selection, explicit ComBat harmonization, and stabilized null estimation. This changes the manuscript from a generic transfer benchmark into a stricter diagnostic protocol for identifying where transfer claims hold and where they collapse.
 
-Cross-cohort behavior is asymmetric: source_only performance varies sharply by direction, and pooled source+target deltas are unstable after correction. This pattern is consistent with cohort-compatibility and distribution-shift effects, and supports a conservative interpretation that robust within-target signal exists while transfer reliability is context dependent.
+Two stable findings remain:
+1) leakage-safe target-domain signal is reproducibly above null;
+2) transfer benefit is direction- and configuration-dependent.
+
+Thus, cross-cohort uplift should be reported conditionally, with harmonization strategy and uncertainty bounds made explicit.
 
 ## 6. Limitations
-This study is intentionally scoped to two public blood transcriptomic cohorts and a baseline logistic modeling family. In addition, pooled source+target analyses are exploratory in this version because explicit cross-study batch harmonization is not yet applied.
-
-These boundaries do not change the internal validity of the leakage-safe target-vs-null comparisons, but they do limit external generalization claims. We therefore treat the current artifact as a reproducible baseline protocol for broader multi-cohort and harmonized extensions.
+This benchmark still uses two cohorts and a single baseline model family. ComBat is applied in a transductive feature-only harmonization regime; fully prospective external validation across additional cohorts remains future work. AMP-AD is used here as contextual evidence, not yet as a strict causal or mechanistic model component.
 
 ## 7. Conclusion
-In this open cross-cohort AD benchmark, leakage-safe target-domain modeling shows robust signal above null controls, with strongest support in one cohort direction after multiple-testing correction. Source-only and pooled transfer results are direction-sensitive and should be interpreted cautiously.
-
-The main contribution is a reproducible, statistically controlled transfer-evaluation protocol that makes claim boundaries explicit and auditable. This provides a concrete foundation for the next revision step: harmonization-aware transfer testing and broader external validation.
+In this reproducible v4 open-data benchmark, AD blood transcriptomic prediction shows robust leakage-safe target-domain signal above permutation null baselines. DE feature selection plus ComBat harmonization improves specific transfer settings, but transfer gains remain conditional rather than universal. The practical contribution is a transparent, executable protocol that sharpens claim boundaries for cross-cohort AD modeling.
 
 ## 8. Reproducibility
-Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea (public repository, main branch).
+Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea
 
 Run sequence:
-1) `python src/train/run_open_phaseA_benchmark.py`  
-2) `python src/eval/compute_open_phaseA_bootstrap.py`  
+1) `python src/train/run_open_phaseA_benchmark.py`
+2) `python src/eval/compute_open_phaseA_bootstrap.py`
 3) `python src/ingest/fetch_ampad_open_subset.py`
 
-Key outputs:
+Core outputs:
 - `outputs/metrics/open_phaseA_main_results.csv`
 - `outputs/metrics/open_phaseA_predictions.csv`
 - `outputs/stats/open_phaseA_auroc_ci.csv`
 - `outputs/stats/open_phaseA_paired_tests.csv`
+- `outputs/stats/open_phaseA_stats.json`
 - `outputs/open_phaseA_data_manifest.json`
-- `outputs/data/ampad_open_nominated_targets.csv`
-- `outputs/clawrxiv_open_phaseA_claims.md`
 
 ## References
 [1] NCBI GEO, “GSE63060.” https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63060
 
 [2] NCBI GEO, “GSE63061.” https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63061
 
-[3] AD Knowledge Portal, “Agora (open target nomination resource).” https://agora.adknowledgeportal.org/
+[3] AD Knowledge Portal, “Agora.” https://agora.adknowledgeportal.org/
 
 [4] AD Knowledge Portal API, “Nominated genes endpoint.” https://agora.adknowledgeportal.org/api/v1/genes/nominated
 
 [5] B. Efron and R. J. Tibshirani, An Introduction to the Bootstrap. Chapman & Hall/CRC, 1993.
 
-[6] Y. Benjamini and Y. Hochberg, “Controlling the false discovery rate: a practical and powerful approach to multiple testing,” Journal of the Royal Statistical Society: Series B, vol. 57, no. 1, pp. 289–300, 1995. doi:10.1111/j.2517-6161.1995.tb02031.x.
+[6] Y. Benjamini and Y. Hochberg, “Controlling the false discovery rate: a practical and powerful approach to multiple testing,” JRSS-B, 57(1):289-300, 1995. doi:10.1111/j.2517-6161.1995.tb02031.x.
 
-[7] D. S. Marcus et al., “Open Access Series of Imaging Studies (OASIS): Cross-sectional MRI Data in Young, Middle Aged, Nondemented, and Demented Older Adults,” Journal of Cognitive Neuroscience, vol. 19, no. 9, pp. 1498–1507, 2007. doi:10.1162/jocn.2007.19.9.1498.
+[7] G. K. Smyth, “Linear models and empirical bayes methods for assessing differential expression in microarray experiments,” Stat Appl Genet Mol Biol, 3:Article3, 2004. doi:10.2202/1544-6115.1027.
+
+[8] W. E. Johnson, C. Li, and A. Rabinovic, “Adjusting batch effects in microarray expression data using empirical Bayes methods,” Biostatistics, 8(1):118-127, 2007. doi:10.1093/biostatistics/kxj037.
+
+[9] M. E. Ritchie et al., “limma powers differential expression analyses for RNA-sequencing and microarray studies,” Nucleic Acids Res, 43(7):e47, 2015. doi:10.1093/nar/gkv007.

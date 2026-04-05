@@ -43,6 +43,13 @@ def _bootstrap_ci(y: np.ndarray, p: np.ndarray, n_boot: int = 1000, seed: int = 
     return float(np.mean(arr)), float(np.quantile(arr, 0.025)), float(np.quantile(arr, 0.975))
 
 
+def _safe_group_cols(df: pd.DataFrame) -> list[str]:
+    cols = ["source", "target", "top_n_genes"]
+    if "feature_mode" in df.columns:
+        cols.insert(2, "feature_mode")
+    return cols
+
+
 def run() -> None:
     root = Path(__file__).resolve().parents[2]
     pred_path = root / "outputs/metrics/open_phaseA_predictions.csv"
@@ -51,13 +58,17 @@ def run() -> None:
 
     df = pd.read_csv(pred_path)
 
+    group_cols = _safe_group_cols(df)
     ci_rows = []
     p_rows = []
 
-    for (src, tgt, top_n), g in df.groupby(["source", "target", "top_n_genes"]):
+    for key_vals, g in df.groupby(group_cols):
+        if not isinstance(key_vals, tuple):
+            key_vals = (key_vals,)
+        key_map = dict(zip(group_cols, key_vals))
+
         arms = {a: x.copy() for a, x in g.groupby("arm")}
 
-        # CIs per arm
         for arm, ga in arms.items():
             y = ga["y_true"].to_numpy(dtype=int)
             p = ga["y_prob"].to_numpy(dtype=float)
@@ -65,9 +76,7 @@ def run() -> None:
             mean_b, lo, hi = _bootstrap_ci(y, p)
             ci_rows.append(
                 {
-                    "source": src,
-                    "target": tgt,
-                    "top_n_genes": int(top_n),
+                    **key_map,
                     "arm": arm,
                     "auroc": float(base),
                     "auroc_boot_mean": mean_b,
@@ -76,11 +85,20 @@ def run() -> None:
                 }
             )
 
-        # paired comparisons on same sample_ids
-        comp_defs = [
-            ("source_plus_target", "target_only", "transfer_vs_target_only"),
-            ("target_only", "null_label_permutation", "target_only_vs_null"),
-        ]
+        transfer_arm = "source_plus_target_combat" if "source_plus_target_combat" in arms else (
+            "source_plus_target" if "source_plus_target" in arms else None
+        )
+        null_arm = "null_label_permutation_avg100" if "null_label_permutation_avg100" in arms else (
+            "null_label_permutation" if "null_label_permutation" in arms else None
+        )
+
+        comp_defs = []
+        if transfer_arm and "target_only" in arms:
+            comp_defs.append((transfer_arm, "target_only", f"{transfer_arm}_vs_target_only"))
+        if null_arm and "target_only" in arms:
+            comp_defs.append(("target_only", null_arm, f"target_only_vs_{null_arm}"))
+        if "source_only" in arms and "target_only" in arms:
+            comp_defs.append(("source_only", "target_only", "source_only_vs_target_only"))
 
         for a1, a2, cname in comp_defs:
             g1 = arms[a1].set_index("sample_id").sort_index()
@@ -107,9 +125,7 @@ def run() -> None:
             p_two = float(2 * min((arr <= 0).mean(), (arr >= 0).mean()))
             p_rows.append(
                 {
-                    "source": src,
-                    "target": tgt,
-                    "top_n_genes": int(top_n),
+                    **key_map,
                     "comparison": cname,
                     "delta_auroc": float(delta_obs),
                     "ci95_lo": float(np.quantile(arr, 0.025)),
@@ -119,7 +135,8 @@ def run() -> None:
             )
 
     p_df = pd.DataFrame(p_rows)
-    p_df = p_df.sort_values(["source", "target", "top_n_genes", "comparison"]).reset_index(drop=True)
+    sort_cols = [c for c in ["source", "target", "feature_mode", "top_n_genes", "comparison"] if c in p_df.columns]
+    p_df = p_df.sort_values(sort_cols).reset_index(drop=True)
     p_df["bh_adjusted_p"] = _bh_adjust(p_df["p_value"].tolist())
 
     pd.DataFrame(ci_rows).to_csv(out_ci, index=False)

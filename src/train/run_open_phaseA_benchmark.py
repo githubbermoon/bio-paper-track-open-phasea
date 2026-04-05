@@ -9,12 +9,17 @@ from urllib.request import urlopen
 
 import numpy as np
 import pandas as pd
+from pycombat import Combat
+from scipy.stats import ttest_ind
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, balanced_accuracy_score, brier_score_loss, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+
+SEED = 42
 
 
 def _series_url(gse: str) -> str:
@@ -35,7 +40,6 @@ def _download_text(url: str, cache_path: Path) -> str:
 def _extract_label(sample_chars: list[str]) -> int | None:
     s = " | ".join(sample_chars).lower()
 
-    # Prefer explicit GEO status fields when present (e.g., status: ad / status: ctl)
     status_hits = re.findall(r"status\s*:\s*([a-z0-9 _-]+)", s)
     for status in status_hits:
         st = status.strip()
@@ -51,7 +55,7 @@ def _extract_label(sample_chars: list[str]) -> int | None:
     if any(k in s for k in ["control", "cognitively normal", "healthy", "status: ctl"]):
         return 0
 
-    m = re.search(r"diagnosis[:=]\\s*([a-z0-9 _-]+)", s)
+    m = re.search(r"diagnosis[:=]\s*([a-z0-9 _-]+)", s)
     if m:
         d = m.group(1)
         if "alzheimer" in d or d.strip() == "ad":
@@ -91,9 +95,7 @@ def load_geo_series(gse: str, raw_dir: Path) -> tuple[pd.DataFrame, pd.Series]:
             if j < len(char_by_sample):
                 char_by_sample[j].append(val)
 
-    labels = []
-    for ch in char_by_sample:
-        labels.append(_extract_label(ch))
+    labels = [_extract_label(ch) for ch in char_by_sample]
 
     tab = "\n".join(lines[table_start:table_end])
     expr = pd.read_csv(io.StringIO(tab), sep="\t")
@@ -103,7 +105,6 @@ def load_geo_series(gse: str, raw_dir: Path) -> tuple[pd.DataFrame, pd.Series]:
     expr = expr[["ID_REF", *value_cols]].copy()
     expr["ID_REF"] = expr["ID_REF"].astype(str)
 
-    # to sample x gene
     x = expr.set_index("ID_REF").T
     x.index.name = "gsm"
     x = x.apply(pd.to_numeric, errors="coerce")
@@ -127,21 +128,102 @@ def _metrics(y_true: np.ndarray, prob: np.ndarray) -> dict[str, float]:
 
 
 def _fit_predict(X_train: pd.DataFrame, y_train: pd.Series, X_test: pd.DataFrame) -> np.ndarray:
-    model = Pipeline([
-        ("imp", SimpleImputer(strategy="median")),
-        ("sc", StandardScaler(with_mean=False)),
-        ("clf", LogisticRegression(max_iter=2000, class_weight="balanced", solver="liblinear")),
-    ])
+    model = Pipeline(
+        [
+            ("imp", SimpleImputer(strategy="median")),
+            ("sc", StandardScaler(with_mean=False)),
+            (
+                "clf",
+                LogisticRegression(
+                    max_iter=2000,
+                    class_weight="balanced",
+                    solver="liblinear",
+                    random_state=SEED,
+                ),
+            ),
+        ]
+    )
     model.fit(X_train, y_train)
     return model.predict_proba(X_test)[:, 1]
 
 
-def _common_top_var(Xa: pd.DataFrame, Xb: pd.DataFrame, top_n: int = 1000) -> list[str]:
+def _common_genes(Xa: pd.DataFrame, Xb: pd.DataFrame) -> pd.Index:
     common = Xa.columns.intersection(Xb.columns)
     if len(common) == 0:
         raise RuntimeError("No common genes across cohorts")
-    v = pd.concat([Xa[common], Xb[common]], axis=0).var(axis=0).sort_values(ascending=False)
-    return v.head(min(top_n, len(v))).index.tolist()
+    return common
+
+
+def _select_top_genes(
+    X_train_target: pd.DataFrame,
+    y_train_target: pd.Series,
+    common: pd.Index,
+    top_n: int,
+    feature_mode: str,
+) -> list[str]:
+    Xt = X_train_target[common]
+
+    if feature_mode == "var":
+        score = Xt.var(axis=0)
+    elif feature_mode == "de_ttest":
+        cases = Xt.loc[y_train_target == 1]
+        ctrls = Xt.loc[y_train_target == 0]
+        stat, _ = ttest_ind(cases.values, ctrls.values, axis=0, equal_var=False, nan_policy="omit")
+        score = pd.Series(np.abs(np.nan_to_num(stat, nan=0.0)), index=Xt.columns)
+    else:
+        raise ValueError(f"Unknown feature_mode: {feature_mode}")
+
+    score = score.replace([np.inf, -np.inf], 0.0).fillna(0.0)
+    return score.sort_values(ascending=False).head(min(top_n, len(score))).index.tolist()
+
+
+def _combat_train_test(
+    X_train: pd.DataFrame,
+    batch_train: pd.Series,
+    X_test: pd.DataFrame,
+    batch_test: pd.Series,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    ComBat adjustment over stacked train+test expression (feature-only, no labels).
+    This is a transductive harmonization step to align batch distributions.
+    """
+    combat = Combat()
+    X_all = pd.concat([X_train, X_test], axis=0)
+    b_all = pd.concat([batch_train, batch_test], axis=0)
+    X_all_adj = combat.fit_transform(X_all.values, b=b_all.values)
+    X_all_df = pd.DataFrame(X_all_adj, index=X_all.index, columns=X_all.columns)
+    Xtr_df = X_all_df.loc[X_train.index]
+    Xte_df = X_all_df.loc[X_test.index]
+    return Xtr_df, Xte_df
+
+
+def _null_avg_predict(
+    Xtr: pd.DataFrame,
+    ytr: pd.Series,
+    Xte: pd.DataFrame,
+    yte: pd.Series,
+    n_perm: int = 100,
+) -> tuple[np.ndarray, dict]:
+    rng = np.random.default_rng(SEED)
+    prob_acc = np.zeros(len(Xte), dtype=float)
+    aucs: list[float] = []
+
+    for _ in range(n_perm):
+        y_perm = ytr.iloc[rng.permutation(len(ytr))].copy()
+        y_perm.index = ytr.index
+        p = _fit_predict(Xtr, y_perm, Xte)
+        prob_acc += p
+        aucs.append(float(roc_auc_score(yte.values, p)))
+
+    p_avg = prob_acc / n_perm
+    auc_arr = np.array(aucs, dtype=float)
+    return p_avg, {
+        "n_perm": int(n_perm),
+        "perm_auroc_mean": float(np.mean(auc_arr)),
+        "perm_auroc_std": float(np.std(auc_arr)),
+        "perm_auroc_q05": float(np.quantile(auc_arr, 0.05)),
+        "perm_auroc_q95": float(np.quantile(auc_arr, 0.95)),
+    }
 
 
 def run() -> None:
@@ -160,57 +242,219 @@ def run() -> None:
 
     rows = []
     pred_rows = []
-    stats: dict[str, dict[str, float]] = {}
+    stats: dict[str, dict[str, float | int | str]] = {}
 
-    for top_n in [200, 1000]:
-        for source, target in [("GSE63060", "GSE63061"), ("GSE63061", "GSE63060")]:
-            Xs, ys = data[source]
-            Xt, yt = data[target]
+    for feature_mode in ["var", "de_ttest"]:
+        for top_n in [200, 1000]:
+            for source, target in [("GSE63060", "GSE63061"), ("GSE63061", "GSE63060")]:
+                Xs, ys = data[source]
+                Xt, yt = data[target]
 
-            genes = _common_top_var(Xs, Xt, top_n=top_n)
-            Xs_use = Xs[genes]
-            Xt_use = Xt[genes]
+                common = _common_genes(Xs, Xt)
+                Xtr_t, Xte_t, ytr, yte = train_test_split(
+                    Xt[common], yt, test_size=0.3, random_state=SEED, stratify=yt
+                )
 
-            Xtr, Xte, ytr, yte = train_test_split(
-                Xt_use, yt, test_size=0.3, random_state=42, stratify=yt
-            )
+                genes = _select_top_genes(Xtr_t, ytr, common, top_n=top_n, feature_mode=feature_mode)
+                Xs_use = Xs[genes]
+                Xtr = Xtr_t[genes]
+                Xte = Xte_t[genes]
 
-            # no-transfer baseline
-            p_target = _fit_predict(Xtr, ytr, Xte)
-            m_target = _metrics(yte.values, p_target)
-            rows.append({"source": source, "target": target, "top_n_genes": top_n, "arm": "target_only", **m_target})
-            for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_target):
-                pred_rows.append({"source": source, "target": target, "top_n_genes": top_n, "arm": "target_only", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
+                p_target = _fit_predict(Xtr, ytr, Xte)
+                m_target = _metrics(yte.values, p_target)
+                rows.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "feature_mode": feature_mode,
+                        "top_n_genes": top_n,
+                        "arm": "target_only",
+                        **m_target,
+                    }
+                )
+                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_target):
+                    pred_rows.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "feature_mode": feature_mode,
+                            "top_n_genes": top_n,
+                            "arm": "target_only",
+                            "sample_id": sid,
+                            "y_true": int(yt_i),
+                            "y_prob": float(pr_i),
+                        }
+                    )
 
-            # source only transfer
-            p_source = _fit_predict(Xs_use, ys, Xte)
-            m_source = _metrics(yte.values, p_source)
-            rows.append({"source": source, "target": target, "top_n_genes": top_n, "arm": "source_only", **m_source})
-            for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_source):
-                pred_rows.append({"source": source, "target": target, "top_n_genes": top_n, "arm": "source_only", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
+                p_source = _fit_predict(Xs_use, ys, Xte)
+                m_source = _metrics(yte.values, p_source)
+                rows.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "feature_mode": feature_mode,
+                        "top_n_genes": top_n,
+                        "arm": "source_only",
+                        **m_source,
+                    }
+                )
+                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_source):
+                    pred_rows.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "feature_mode": feature_mode,
+                            "top_n_genes": top_n,
+                            "arm": "source_only",
+                            "sample_id": sid,
+                            "y_true": int(yt_i),
+                            "y_prob": float(pr_i),
+                        }
+                    )
 
-            # source + target train transfer
-            X_combo = pd.concat([Xs_use, Xtr], axis=0)
-            y_combo = pd.concat([ys, ytr], axis=0)
-            p_combo = _fit_predict(X_combo, y_combo, Xte)
-            m_combo = _metrics(yte.values, p_combo)
-            rows.append({"source": source, "target": target, "top_n_genes": top_n, "arm": "source_plus_target", **m_combo})
-            for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_combo):
-                pred_rows.append({"source": source, "target": target, "top_n_genes": top_n, "arm": "source_plus_target", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
+                X_combo_raw = pd.concat([Xs_use, Xtr], axis=0)
+                y_combo_raw = pd.concat([ys, ytr], axis=0)
+                p_combo_raw = _fit_predict(X_combo_raw, y_combo_raw, Xte)
+                m_combo_raw = _metrics(yte.values, p_combo_raw)
+                rows.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "feature_mode": feature_mode,
+                        "top_n_genes": top_n,
+                        "arm": "source_plus_target_raw",
+                        **m_combo_raw,
+                    }
+                )
+                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_combo_raw):
+                    pred_rows.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "feature_mode": feature_mode,
+                            "top_n_genes": top_n,
+                            "arm": "source_plus_target_raw",
+                            "sample_id": sid,
+                            "y_true": int(yt_i),
+                            "y_prob": float(pr_i),
+                        }
+                    )
 
-            # null control: permuted labels
-            y_perm = ytr.sample(frac=1.0, random_state=42).reset_index(drop=True)
-            y_perm.index = ytr.index
-            p_null = _fit_predict(Xtr, y_perm, Xte)
-            m_null = _metrics(yte.values, p_null)
-            rows.append({"source": source, "target": target, "top_n_genes": top_n, "arm": "null_label_permutation", **m_null})
-            for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_null):
-                pred_rows.append({"source": source, "target": target, "top_n_genes": top_n, "arm": "null_label_permutation", "sample_id": sid, "y_true": int(yt_i), "y_prob": float(pr_i)})
+                batch_combo = pd.Series([source] * len(Xs_use) + [target] * len(Xtr), index=X_combo_raw.index)
+                batch_te = pd.Series([target] * len(Xte), index=Xte.index)
+                X_combo_cb, Xte_cb = _combat_train_test(X_combo_raw, batch_combo, Xte, batch_te)
+                p_combo_cb = _fit_predict(X_combo_cb, y_combo_raw, Xte_cb)
+                m_combo_cb = _metrics(yte.values, p_combo_cb)
+                rows.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "feature_mode": feature_mode,
+                        "top_n_genes": top_n,
+                        "arm": "source_plus_target_combat",
+                        **m_combo_cb,
+                    }
+                )
+                # Keep backward-compatible arm label used by downstream stats/paper
+                rows.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "feature_mode": feature_mode,
+                        "top_n_genes": top_n,
+                        "arm": "source_plus_target",
+                        **m_combo_cb,
+                    }
+                )
+                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_combo_cb):
+                    pred_rows.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "feature_mode": feature_mode,
+                            "top_n_genes": top_n,
+                            "arm": "source_plus_target_combat",
+                            "sample_id": sid,
+                            "y_true": int(yt_i),
+                            "y_prob": float(pr_i),
+                        }
+                    )
+                    pred_rows.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "feature_mode": feature_mode,
+                            "top_n_genes": top_n,
+                            "arm": "source_plus_target",
+                            "sample_id": sid,
+                            "y_true": int(yt_i),
+                            "y_prob": float(pr_i),
+                        }
+                    )
 
-            stats[f"{source}_to_{target}_top{top_n}"] = {
-                "delta_auroc_source_plus_target_vs_target_only": m_combo["auroc"] - m_target["auroc"],
-                "delta_auroc_target_only_vs_null": m_target["auroc"] - m_null["auroc"],
-            }
+                p_null_avg, null_meta = _null_avg_predict(Xtr, ytr, Xte, yte, n_perm=100)
+                m_null = _metrics(yte.values, p_null_avg)
+                rows.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "feature_mode": feature_mode,
+                        "top_n_genes": top_n,
+                        "arm": "null_label_permutation_avg100",
+                        **m_null,
+                    }
+                )
+                rows.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "feature_mode": feature_mode,
+                        "top_n_genes": top_n,
+                        "arm": "null_label_permutation",
+                        **m_null,
+                    }
+                )
+                for sid, yt_i, pr_i in zip(Xte.index, yte.values, p_null_avg):
+                    pred_rows.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "feature_mode": feature_mode,
+                            "top_n_genes": top_n,
+                            "arm": "null_label_permutation_avg100",
+                            "sample_id": sid,
+                            "y_true": int(yt_i),
+                            "y_prob": float(pr_i),
+                        }
+                    )
+                    pred_rows.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "feature_mode": feature_mode,
+                            "top_n_genes": top_n,
+                            "arm": "null_label_permutation",
+                            "sample_id": sid,
+                            "y_true": int(yt_i),
+                            "y_prob": float(pr_i),
+                        }
+                    )
+
+                key = f"{feature_mode}__{source}_to_{target}_top{top_n}"
+                stats[key] = {
+                    "feature_mode": feature_mode,
+                    "source": source,
+                    "target": target,
+                    "top_n_genes": int(top_n),
+                    "delta_auroc_source_plus_target_combat_vs_target_only": float(
+                        m_combo_cb["auroc"] - m_target["auroc"]
+                    ),
+                    "delta_auroc_source_plus_target_raw_vs_target_only": float(
+                        m_combo_raw["auroc"] - m_target["auroc"]
+                    ),
+                    "delta_auroc_target_only_vs_null_avg100": float(m_target["auroc"] - m_null["auroc"]),
+                    **null_meta,
+                }
 
     out_metrics.parent.mkdir(parents=True, exist_ok=True)
     out_stats.parent.mkdir(parents=True, exist_ok=True)
@@ -224,6 +468,9 @@ def run() -> None:
         "source": "NCBI GEO series_matrix",
         "urls": {g: _series_url(g) for g in gses},
         "cached_files": [str(p) for p in sorted(raw_dir.glob("*.gz"))],
+        "feature_modes": ["var", "de_ttest"],
+        "null_policy": "100x label permutations averaged at prediction level",
+        "batch_harmonization": "ComBat (pycombat) applied in source_plus_target_combat arm",
     }
     out_manifest.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 

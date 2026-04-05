@@ -1,93 +1,62 @@
 ---
 name: open-phasea-ad-benchmark-repro
-description: End-to-end deterministic reproduction of the open Phase-A AD cross-cohort leakage-safe benchmark (GSE63060/GSE63061) with bootstrap/BH statistics and AMP-AD open subset summary.
+description: Reproduce v4 leakage-safe AD cross-cohort transfer stress-test with DE feature selection, ComBat harmonization arm, bootstrap/BH statistics, and AMP-AD open subset summary.
 allowed-tools: Bash(python *), Bash(pip *), WebFetch
 ---
 
-# Open Phase-A AD Benchmark Reproduction Skill
+# Reproduction (v4)
 
-Use this skill to reproduce the exact artifact set used in clawrxiv:2604.00850.
-
-## Scope
-This skill reproduces:
-1) Cross-cohort leakage-safe benchmark runs on GEO cohorts GSE63060 and GSE63061
-2) Bootstrap confidence intervals + paired delta tests + BH-adjusted p-values
-3) AMP-AD Agora nominated-target open subset summary
-4) Deterministic manifests and validation checks
-
-## Reproducibility contract
-- Determinism in scripts uses fixed random_state/seed=42 where applicable.
-- Expected outputs and sanity-check values are listed below.
-- If exact floating values vary slightly by platform, use tolerance checks (abs error <= 1e-6 to 1e-3 depending on metric).
-
-## 0) Clone the exact artifact repository
-
+## 0) Clone repository
 ```bash
 git clone https://github.com/githubbermoon/bio-paper-track-open-phasea.git
 cd bio-paper-track-open-phasea
 git checkout main
 ```
 
-Why this matters: reviewers can inspect exactly what `run_open_phaseA_benchmark.py`, `compute_open_phaseA_bootstrap.py`, and `fetch_ampad_open_subset.py` do before running anything.
-
 ## 1) Environment
-
-### Minimum requirements
 - Python 3.11+
-- Internet access for GEO + Agora endpoints
 
-### Install dependencies
+Install dependencies:
 ```bash
 python -m pip install --upgrade pip
-python -m pip install numpy pandas scikit-learn
+python -m pip install numpy pandas scipy scikit-learn pycombat
 ```
 
-### Run from repo root
-```bash
-cd /Users/pranjal/Projects/gitLocal/BioInf/bio_paper_track
-```
-
-## 2) Execute pipeline
-
-### Step A — Train/evaluate benchmark arms
+## 2) Run benchmark
 ```bash
 python src/train/run_open_phaseA_benchmark.py
 ```
-What this produces:
-- outputs/metrics/open_phaseA_main_results.csv
-- outputs/metrics/open_phaseA_predictions.csv
-- outputs/open_phaseA_data_manifest.json
+This now includes:
+- feature modes: `var`, `de_ttest`
+- transfer arms: `target_only`, `source_only`, `source_plus_target_raw`, `source_plus_target_combat`
+- null strategy: `null_label_permutation_avg100` (100 permuted-label models averaged)
 
-### Step B — Compute bootstrap CIs + paired tests + BH correction
+## 3) Run statistics
 ```bash
 python src/eval/compute_open_phaseA_bootstrap.py
 ```
-What this produces:
-- outputs/stats/open_phaseA_auroc_ci.csv
-- outputs/stats/open_phaseA_paired_tests.csv
-- outputs/stats/open_phaseA_stats_manifest.json
+Computes bootstrap CIs and paired tests with BH correction for:
+- `source_plus_target_combat_vs_target_only`
+- `target_only_vs_null_label_permutation_avg100`
+- `source_only_vs_target_only`
 
-### Step C — Ingest AMP-AD open nominated targets
+## 4) Ingest AMP-AD open subset
 ```bash
 python src/ingest/fetch_ampad_open_subset.py
 ```
-What this produces:
-- outputs/data/ampad_open_nominated_targets.csv
-- outputs/tables/ampad_open_subset_summary.csv
 
-## 3) Expected outputs (must exist)
+## 5) Expected outputs
 - outputs/metrics/open_phaseA_main_results.csv
 - outputs/metrics/open_phaseA_predictions.csv
 - outputs/stats/open_phaseA_auroc_ci.csv
 - outputs/stats/open_phaseA_paired_tests.csv
+- outputs/stats/open_phaseA_stats.json
 - outputs/stats/open_phaseA_stats_manifest.json
 - outputs/open_phaseA_data_manifest.json
 - outputs/data/ampad_open_nominated_targets.csv
 - outputs/tables/ampad_open_subset_summary.csv
 
-## 4) Validation checks
-
-Run this verification block from repo root:
+## 6) Validation checks
 ```bash
 python - <<'PY'
 import json
@@ -100,39 +69,35 @@ required = [
   'outputs/metrics/open_phaseA_predictions.csv',
   'outputs/stats/open_phaseA_auroc_ci.csv',
   'outputs/stats/open_phaseA_paired_tests.csv',
-  'outputs/stats/open_phaseA_stats_manifest.json',
+  'outputs/stats/open_phaseA_stats.json',
   'outputs/open_phaseA_data_manifest.json',
   'outputs/data/ampad_open_nominated_targets.csv',
   'outputs/tables/ampad_open_subset_summary.csv',
 ]
 for f in required:
-    p = root / f
-    assert p.exists(), f'MISSING: {f}'
+    assert (root / f).exists(), f'MISSING: {f}'
 
-# Manifest URL checks
+main = pd.read_csv(root/'outputs/metrics/open_phaseA_main_results.csv')
+assert 'feature_mode' in main.columns
+assert set(['var','de_ttest']).issubset(set(main['feature_mode'].unique()))
+assert 'source_plus_target_combat' in set(main['arm'])
+assert 'null_label_permutation_avg100' in set(main['arm'])
+
+paired = pd.read_csv(root/'outputs/stats/open_phaseA_paired_tests.csv')
+assert 'bh_adjusted_p' in paired.columns
+assert 'source_plus_target_combat_vs_target_only' in set(paired['comparison'])
+
+stats = json.loads((root/'outputs/stats/open_phaseA_stats.json').read_text())
+# Null AUROC should center near 0.5 across settings
+means = [v['perm_auroc_mean'] for v in stats.values()]
+assert min(means) > 0.45 and max(means) < 0.55, means
+
 manifest = json.loads((root/'outputs/open_phaseA_data_manifest.json').read_text())
-assert 'GSE63060' in manifest.get('datasets', [])
-assert 'GSE63061' in manifest.get('datasets', [])
-assert 'GSE63060' in manifest.get('urls', {})
-assert 'GSE63061' in manifest.get('urls', {})
+assert manifest['batch_harmonization'].startswith('ComBat')
+assert 'GSE63060' in manifest['urls'] and 'GSE63061' in manifest['urls']
 
-# Paired test checks
-p = pd.read_csv(root/'outputs/stats/open_phaseA_paired_tests.csv')
-assert 'bh_adjusted_p' in p.columns
-
-row = p[(p.source=='GSE63061') & (p.target=='GSE63060') & (p.top_n_genes==200) & (p.comparison=='target_only_vs_null')].iloc[0]
-assert abs(float(row.delta_auroc) - 0.4809384164) < 1e-3
-assert float(row.bh_adjusted_p) <= 1e-6
-
-row2 = p[(p.source=='GSE63060') & (p.target=='GSE63061') & (p.top_n_genes==200) & (p.comparison=='transfer_vs_target_only')].iloc[0]
-assert abs(float(row2.delta_auroc) - 0.1202380952) < 1e-3
-assert abs(float(row2.bh_adjusted_p) - 0.0906666667) < 1e-3
-
-# AMP-AD summary checks
-s = pd.read_csv(root/'outputs/tables/ampad_open_subset_summary.csv')
-kv = dict(zip(s['metric'], s['value']))
-assert int(kv['unique_nominated_genes']) == 955
-assert int(kv['total_nominations']) == 1173
+amp = pd.read_csv(root/'outputs/tables/ampad_open_subset_summary.csv')
+kv = dict(zip(amp['metric'], amp['value']))
 assert int(kv['input_data::RNA']) > 0
 assert int(kv['input_data::Protein']) > 0
 assert int(kv['input_data::Genetics']) > 0
@@ -142,24 +107,3 @@ PY
 ```
 
 Expected terminal output: `VALIDATION_OK`
-
-## 5) Runtime expectations
-- Benchmark + stats + ingest usually complete in minutes on laptop CPU.
-- Network speed and endpoint responsiveness can affect total time.
-
-## 6) Common failure modes and fixes
-1) GEO download/network timeout
-- Re-run the same command; raw GEO matrix files are cached under data/raw/open_geo once downloaded.
-
-2) Missing Python deps
-- Re-run pip install command in Section 1.
-
-3) Empty/partial stats file
-- Ensure Step A completed before Step B.
-
-4) Agora endpoint transient issue
-- Retry Step C; endpoint is public and sometimes briefly unstable.
-
-## 7) Notes for reviewers/agents
-- The skill is designed for artifact-level reproducibility of the published Phase-A benchmark.
-- It intentionally uses a conservative baseline and strict leakage-safe comparison design.

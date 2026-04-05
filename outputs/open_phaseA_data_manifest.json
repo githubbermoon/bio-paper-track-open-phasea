@@ -11,5 +11,11 @@
   "cached_files": [
     "/Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/data/raw/open_geo/GSE63060_series_matrix.txt.gz",
     "/Users/pranjal/Projects/gitLocal/bioInf/bio_paper_track/data/raw/open_geo/GSE63061_series_matrix.txt.gz"
-  ]
+  ],
+  "feature_modes": [
+    "var",
+    "de_ttest"
+  ],
+  "null_policy": "100x label permutations averaged at prediction level",
+  "batch_harmonization": "ComBat (pycombat) applied in source_plus_target_combat arm"
 }
