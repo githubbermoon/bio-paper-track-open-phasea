@@ -1,14 +1,14 @@
-# Leakage-Safe Cross-Cohort Alzheimer’s Transcriptomic Prediction on Open Data: A Reproducible Phase-A Benchmark
+# Leakage-Safe Cross-Cohort Alzheimer’s Transcriptomic Prediction on Open Data: A Reproducible Transfer-Stress Test
 
 **Pranjal**
 
 ## Abstract
-Reliable Alzheimer’s disease (AD) prediction benchmarks are often weakened by leakage-prone evaluation and incomplete reproducibility artifacts. We present a fully open, executable Phase-A benchmark using two public GEO blood transcriptomic cohorts (GSE63060, GSE63061) and open AMP-AD context from the AD Knowledge Portal Agora API. We enforce leakage-safe cohort-direction testing and compare four arms: target-only, source-only, source+target, and label-permutation null. Across ablations (top variable genes: 200 and 1000), target-only models outperform null controls in both directions, with strongest evidence in GSE63061->GSE63060 (delta AUROC +0.4809 and +0.4120; both BH-adjusted p<0.001). Transfer effects are directional rather than universal: positive in GSE63060->GSE63061 and near-zero/negative in the reverse direction after correction. The artifact includes deterministic data manifests, executable scripts, bootstrap confidence intervals, paired tests with Benjamini-Hochberg correction, and claim-evidence mapping. Conservative conclusion: leakage-safe signal is robust on open cohorts, while transfer uplift depends on cohort compatibility.
+Reliable Alzheimer’s disease (AD) prediction benchmarks are often weakened by leakage-prone evaluation and incomplete reproducibility artifacts. We present a fully open, executable transfer-stress test using two public GEO blood transcriptomic cohorts (GSE63060, GSE63061) and open AMP-AD context from the AD Knowledge Portal Agora API. We enforce leakage-safe cohort-direction testing and evaluate target-only, source-only, exploratory source+target pooling, and label-permutation null controls. Across ablations (top variable genes: 200 and 1000), target-only models outperform null controls in both directions, with strongest evidence in GSE63061->GSE63060 (delta AUROC +0.4809 and +0.4120; both BH-adjusted p<0.001). Source-only transfer is direction-sensitive, and pooled source+target effects are reported as exploratory because this version does not apply explicit cross-study batch harmonization. The artifact includes deterministic data manifests, executable scripts, bootstrap confidence intervals, and Benjamini-Hochberg-corrected paired tests. Conservative conclusion: leakage-safe target-domain signal is robust on open cohorts, while cross-cohort transfer behavior is asymmetric and context dependent.
 
 ## 1. Introduction
 Reliable machine-learning benchmarks for Alzheimer’s disease (AD) often fail at the evaluation layer before they fail at modeling: leakage-prone splits, weak null controls, and incomplete artifact disclosure can inflate apparent performance. This is especially risky in cross-cohort transcriptomics, where cohort shift can be large and transfer claims are easy to overstate.
 
-To address this, we frame an open, conservative Phase-A benchmark focused on evidence quality rather than model complexity. The benchmark is built around leakage-safe cohort-direction testing, explicit null comparisons, bootstrap uncertainty, and multiplicity-aware inference. We prioritize a design that a reviewer can audit end-to-end with public data and executable artifacts.
+To address this, we frame an open, conservative transfer stress-test focused on evidence quality rather than model complexity. The workflow is built around leakage-safe cohort-direction testing, explicit null comparisons, bootstrap uncertainty, and multiplicity-aware inference. We prioritize a design that a reviewer can audit end-to-end with public data and executable artifacts.
 
 The central goal is to distinguish three possibilities clearly: (i) genuine target-domain signal, (ii) apparent uplift caused by transfer, and (iii) performance that could be explained by label-randomized baselines. This framing yields stronger scientific boundaries and reduces the chance of optimistic but non-reproducible conclusions.
 
@@ -16,6 +16,11 @@ Primary questions:
 1) Does leakage-safe target-domain modeling retain signal above null controls?  
 2) Does cross-cohort transfer reliably improve over target-only training?  
 3) Can results be reproduced from one command path with frozen manifests?
+
+### 1.1 Positioning relative to prior practice
+Prior AD blood transcriptomic studies have commonly reported discrimination metrics on public cohorts, but cross-cohort transfer behavior is often sensitive to cohort shift, preprocessing choices, and leakage pathways. Our contribution is not a new classifier architecture; it is a stress-tested evaluation protocol that (i) reports target-only, source-only, and pooled transfer behavior side-by-side, (ii) anchors significance against a label-permutation null, and (iii) uses bootstrap uncertainty with FDR correction to bound interpretation.
+
+We therefore position this work as an evaluation-and-reproducibility contribution: a conservative baseline that clarifies what is supported now and what requires harmonization-aware follow-up.
 
 ## 2. Data
 ### 2.1 GEO blood transcriptomic cohorts (primary predictive benchmark)
@@ -29,7 +34,7 @@ Each cohort is treated both as source and as target (A->B and B->A), creating tw
 ### 2.3 AMP-AD open context (biological relevance layer)
 To contextualize results biologically, we include open AMP-AD nomination data from the Agora endpoint (`/api/v1/genes/nominated`) [3,4]. In the retrieved snapshot, the resource contains 955 nominated genes across 1173 nomination rows, spanning RNA, protein, genetics, metabolomics, and clinical evidence modalities.
 
-This layer is not used to claim mechanism in Phase-A; instead, it anchors the benchmark in a broader AD evidence ecosystem while preserving strict predictive/evaluation boundaries.
+This layer is not used to claim mechanism in this version; instead, it anchors the benchmark in a broader AD evidence ecosystem while preserving strict predictive/evaluation boundaries.
 
 ### 2.4 Data provenance and reproducibility scope
 All primary predictive inputs are public and source-addressable via stable accession/API links. The pipeline records deterministic output artifacts (metrics, predictions, confidence intervals, paired tests, and manifests), enabling independent reruns and audit of claim-to-evidence alignment.
@@ -51,6 +56,9 @@ Ablations:
 For each training fold, we apply median imputation and standard scaling (z-score) using training statistics only. The same fitted transforms are then applied to the target test set.
 
 Gene-space ablation uses top variable genes (N in {200, 1000}) computed from training data only. This avoids test-informed feature selection.
+
+### 3.2.1 Batch-effect policy for cross-cohort pooling
+Because GSE63060 and GSE63061 are independent studies, pooled source+target training can be confounded by cross-study batch structure. In this manuscript, pooled source+target results are reported as exploratory diagnostics only and are not used as primary evidence for transfer benefit. The primary inferential comparisons remain target_only vs null and source_only transfer behavior. A harmonized pooled analysis (e.g., ComBat-style correction) is planned as the next extension.
 
 ### 3.3 Predictive model
 We use class-balanced logistic regression (liblinear solver, deterministic random state) as the primary baseline. For a sample with feature vector $x$, the model is:
@@ -86,7 +94,18 @@ Uncertainty and hypothesis testing:
 \newpage
 
 ## 4. Results
-### 4.1 Transfer vs target-only (paired bootstrap)
+### 4.1 Primary arm performance (target-only, source-only, null)
+
+| Direction | Top genes | Target-only AUROC | Source-only AUROC | Null AUROC |
+|---|---:|---:|---:|---:|
+| GSE63060->GSE63061 | 200  | 0.6619 | 0.6798 | 0.5607 |
+| GSE63060->GSE63061 | 1000 | 0.6851 | 0.7393 | 0.5452 |
+| GSE63061->GSE63060 | 200  | 0.9172 | 0.6734 | 0.4362 |
+| GSE63061->GSE63060 | 1000 | 0.9040 | 0.7115 | 0.4919 |
+
+Interpretation: source-only transfer is direction-sensitive and materially weaker than target-only in the GSE63061->GSE63060 direction, highlighting cross-cohort asymmetry.
+
+### 4.2 Exploratory pooled source+target vs target-only (paired bootstrap)
 
 | Direction | Top genes | Delta AUROC (source_plus_target - target_only) | 95% CI | p-value | BH-adjusted p |
 |---|---:|---:|---|---:|---:|
@@ -95,9 +114,9 @@ Uncertainty and hypothesis testing:
 | GSE63061->GSE63060 | 200  | -0.0462 | [-0.1191, 0.0196] | 0.168 | 0.2688 |
 | GSE63061->GSE63060 | 1000 | -0.0095 | [-0.0772, 0.0678] | 0.842 | 0.8420 |
 
-Interpretation: transfer gain is direction-dependent and not statistically robust after multiple-testing correction.
+Interpretation: pooled source+target effects are direction-dependent and not statistically robust after multiple-testing correction; because no explicit cross-study batch harmonization is applied, these pooled results are treated as exploratory.
 
-### 4.2 Signal vs null control
+### 4.3 Signal vs null control
 
 | Direction | Top genes | Delta AUROC (target_only - null) | 95% CI | p-value | BH-adjusted p |
 |---|---:|---:|---|---:|---:|
@@ -107,20 +126,23 @@ Interpretation: transfer gain is direction-dependent and not statistically robus
 
 Interpretation: the strongest supported claim is leakage-safe target-domain signal above null controls, with asymmetric cohort difficulty.
 
-## 5. Discussion
-This Phase-A benchmark shows that open AD blood transcriptomic prediction can retain non-trivial signal under leakage-safe evaluation. However, cross-cohort transfer uplift should be interpreted cautiously: in this study, uplift is conditional and direction-dependent rather than universal.
+### 4.4 AMP-AD evidence-layer context (quantitative summary)
+From the open Agora nominated-target dataset used in this artifact, we recover 955 unique nominated genes across 1173 nominations, with dominant evidence modalities RNA (626), Protein (530), and Genetics (510). This supports biological plausibility context for AD relevance, but it is not used as a supervised feature-selection signal in this version.
 
-The asymmetry between cohort directions is consistent with distribution-shift and cohort-compatibility effects. Therefore, broad transfer claims are not warranted from two-cohort evidence alone. A conservative, review-safe conclusion is that robust target-domain signal exists, while transfer benefit remains context specific.
+## 5. Discussion
+This transfer-stress test shows that open AD blood transcriptomic prediction retains non-trivial target-domain signal under leakage-safe evaluation. The strongest evidence is target_only > null in the GSE63061->GSE63060 direction after multiple-testing correction.
+
+Cross-cohort behavior is asymmetric: source_only performance varies sharply by direction, and pooled source+target deltas are unstable after correction. This pattern is consistent with cohort-compatibility and distribution-shift effects, and supports a conservative interpretation that robust within-target signal exists while transfer reliability is context dependent.
 
 ## 6. Limitations
-This Phase-A study is intentionally scoped as a conservative open benchmark. Two boundary conditions remain: (i) evaluation currently covers two public blood transcriptomic cohorts, and (ii) external expansion to additional cohorts (including OASIS-linked validation workflows) is planned for the next phase [7].
+This study is intentionally scoped to two public blood transcriptomic cohorts and a baseline logistic modeling family. In addition, pooled source+target analyses are exploratory in this version because explicit cross-study batch harmonization is not yet applied.
 
-These constraints do not affect the internal validity of the reported leakage-safe comparisons, but they do define the current generalization envelope. Accordingly, we position the present findings as a reproducible foundation for broader multi-cohort extension.
+These boundaries do not change the internal validity of the leakage-safe target-vs-null comparisons, but they do limit external generalization claims. We therefore treat the current artifact as a reproducible baseline protocol for broader multi-cohort and harmonized extensions.
 
 ## 7. Conclusion
-In this open Phase-A benchmark, leakage-safe target-domain AD prediction demonstrates robust signal above null controls, with strongest evidence in one cohort direction after multiple-testing correction. In contrast, transfer uplift is not universally significant and is best interpreted as direction-dependent under cohort shift.
+In this open cross-cohort AD benchmark, leakage-safe target-domain modeling shows robust signal above null controls, with strongest support in one cohort direction after multiple-testing correction. Source-only and pooled transfer results are direction-sensitive and should be interpreted cautiously.
 
-The main contribution is therefore methodological and evidential: a conservative, reproducibility-first benchmark that separates supported claims from overreach using explicit controls, bootstrap uncertainty, and FDR-corrected inference. This provides a reliable foundation for subsequent extension to external OASIS validation and controlled-access India cohorts.
+The main contribution is a reproducible, statistically controlled transfer-evaluation protocol that makes claim boundaries explicit and auditable. This provides a concrete foundation for the next revision step: harmonization-aware transfer testing and broader external validation.
 
 ## 8. Reproducibility
 Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea (commit `6081a64`).
