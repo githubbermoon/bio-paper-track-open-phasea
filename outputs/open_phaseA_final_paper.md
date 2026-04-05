@@ -145,7 +145,7 @@ In this open cross-cohort AD benchmark, leakage-safe target-domain modeling show
 The main contribution is a reproducible, statistically controlled transfer-evaluation protocol that makes claim boundaries explicit and auditable. This provides a concrete foundation for the next revision step: harmonization-aware transfer testing and broader external validation.
 
 ## 8. Reproducibility
-Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea (commit `948f5c6`).
+Code and artifacts: https://github.com/githubbermoon/bio-paper-track-open-phasea (public repository, main branch).
 
 Run sequence:
 1) `python src/train/run_open_phaseA_benchmark.py`  
