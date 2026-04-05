@@ -1,10 +1,10 @@
-# Empirical Characterization of the "Harmonization-Dominance" Defect: A Batch-Distortion Penalty Framework for Alzheimer's Research
+# Empirical Characterization of the "Harmonization-Dominance" Failure Mode: A Batch-Distortion Penalty Framework for Alzheimer's Research
 
 **Pranjal**
 
 ## Abstract
 
-Cross-cohort Alzheimer's disease (AD) blood transcriptomic prediction is sensitive to batch effects introduced during dataset harmonization. Standard pipelines treat batch correction and feature selection as independent steps, allowing features that required extreme mathematical rescuing during harmonization to dominate predictive models—a phenomenon we characterize as the **"Harmonization-Dominance" Defect**. We introduce **Batch-Distortion Penalized Feature Selection (BDP-FS)**, a regularization framework that extracts empirical Bayes distortion parameters from harmonization and penalizes features exhibiting high technical noise. We propose an **adaptive GMM-regularized variant**, which employs 2-component Gaussian Mixture Models to adaptively regularize feature weights. In bidirectional evaluation on AddNeuroMed sister-cohorts (GSE63060/GSE63061), BDP-FS achieves a positive predictive lift in compatible transfers. Crucially, in sparse feature settings (Top-200), the transition to GMM-anchored soft-weighting yields a measured lift and the preservation of **164 AMP-AD Agora nominated biological targets** that are otherwise lost to technical noise. Conversely, a secondary cross-platform evaluation on GSE97760 demonstrates that underpowered holdouts produce AUROCs indistinguishable from chance ($p=0.26$ against 1,000 permutations), underscoring the necessity of adequately powered validation cohorts.
+Cross-cohort Alzheimer's disease (AD) blood transcriptomic prediction is sensitive to batch effects introduced during dataset harmonization. Standard pipelines treat batch correction and feature selection as independent steps, allowing features that required extreme mathematical rescuing during harmonization to dominate predictive models—a phenomenon we characterize as the **"Harmonization-Dominance" Failure Mode**. We introduce **Batch-Distortion Penalized Feature Selection (BDP-FS)**, a regularization framework that extracts empirical Bayes distortion parameters from harmonization and penalizes features exhibiting high technical noise. We propose an **adaptive GMM-regularized variant**, which employs 2-component Gaussian Mixture Models to adaptively regularize feature weights. In bidirectional evaluation on AddNeuroMed sister-cohorts (GSE63060/GSE63061), BDP-FS achieves a positive predictive lift in compatible transfers. Crucially, in sparse feature settings (Top-200), the transition to GMM-anchored soft-weighting yields a measured lift and the preservation of **164 AMP-AD Agora nominated biological targets** that are otherwise lost to technical noise. Conversely, a secondary cross-platform evaluation on GSE97760 demonstrates that underpowered holdouts produce AUROCs indistinguishable from chance ($p=0.26$ against 1,000 permutations), underscoring the necessity of adequately powered validation cohorts.
 
 ## 1. Introduction
 
@@ -107,8 +107,8 @@ Permutation-null distributions are computed via 1,000 label permutations of the 
 
 The transition from static percentile-based filtering to GMM-anchored soft weighting (Adaptive) demonstrates a significant improvement in model stability and biological preservation. 
 
-#### **Functional Significance of Rescued Targets (Agora Shield)**
-A pathway enrichment analysis of the 164 rescued biological targets reveals a high concentration of transcripts involved in **Mitochondrial Complex I assembly** (*NDUFA1*, *NDUFS5*) and **Pro-inflammatory NF-κB signaling** (*IKBKB*). These pathways are established early-stage drivers of Alzheimer's pathology that are frequently masked by technical variance in blood-based studies. By preserving these features, BDP-FS ensures that the predictive model remains mechanistically relevant rather than relying on technical artifacts.
+#### **Functional Significance of Rescued Targets (Agora Target Preservation)**
+A pathway enrichment analysis of the **164 rescued biological targets** (experiment `adaptive_bdpfs__GSE63060_to_GSE63061`) reveals a high concentration of transcripts involved in **Mitochondrial Complex I assembly** (*NDUFA1*, *NDUFS5*) and **Pro-inflammatory NF-κB signaling** (*IKBKB*). These pathways are established early-stage drivers of Alzheimer's pathology that are frequently masked by technical variance in blood-based studies. These targets were established by **external NIH-funded consensus teams** [3] and serve as an independent biological ground truth, neutralizing claims of circular feature selection.
 
 | Gene Symbol | AD Biological Context | DE Score ($|t|$) | Distortion ($D_g$) | Status (Static) | Status (Adaptive) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -123,7 +123,7 @@ A pathway enrichment analysis of the 164 rescued biological targets reveals a hi
 Baseline AUROC: 0.705. Static Sweep produced fluctuating AUROCs ranging from 0.709 to 0.769, indicating that rigid thresholds are highly sensitive to specific feature subsets. Adaptive Regularization achieved an AUROC of 0.710 (+0.005 lift). While the nominal lift is conservative, the adaptive variant successfully regularized the feature space, preventing the catastrophic signal loss often associated with hard-thresholding in high-variance cohorts.
 
 **Direction: GSE63061 $\to$ GSE63060 (Favorable Transfer)**
-Baseline AUROC: 0.878. Adaptive Regularization achieved 0.880 (+0.002 lift), confirming that the GMM-anchored approach sustains predictive performance even in compatible transfer environments. Crucially, this mechanism successfully rescued **164 AMP-AD Agora nominated biological targets** (e.g., mapping probes for _APP_, _MAPT_, and _PSEN1_) that were otherwise pruned by legacy distortion filters through a **biologically-informed weight discounting** approach.
+Baseline AUROC: 0.878. Adaptive Regularization achieved 0.880 (+0.002 lift), confirming that the GMM-anchored approach sustains predictive performance even in compatible transfer environments. Crucially, this mechanism successfully rescued **148 AMP-AD Agora nominated biological targets** (e.g., mapping probes for _APP_, _MAPT_, and _PSEN1_) that were otherwise pruned by legacy distortion filters through a **biologically-informed weight discounting** approach.
 
 ### 4.3 Cautionary Case Study: GSE97760 Cross-Platform Holdout
 
@@ -134,8 +134,6 @@ As a secondary evaluation, models were tested on GSE97760 (Agilent, $N=19$, $N_{
 - $p$-value (exceedance probability): 0.26
 
 A perfect AUROC on $N_{test}=6$ is statistically indistinguishable from chance at $\alpha=0.05$. With a feature-to-sample ratio of 77:1, logistic regression trivially finds a separating hyperplane regardless of underlying signal. This result serves as a cautionary demonstration: micro-cohort holdouts with $N_{test} < 50$ cannot support claims of predictive generalizability without exhaustive null calibration.
-
-The `source_only` arm (zero-shot transfer) on GSE97760 returned AUROC = 0.50 (DE-1000), confirming the absence of cross-platform signal without harmonization.
 
 ### 4.4 Model Family Sensitivity (Logistic Regression vs. SVM vs. Random Forest)
 
@@ -157,23 +155,23 @@ We provide a forensic stability check by escalating the label-permutation count 
 
 ## 5. Discussion
 
-### 5.1 Characterization of the "Harmonization-Dominance" Defect
+### 5.1 Characterization of the "Harmonization-Dominance" Failure Mode
 
-Our analysis provides an empirical characterization of a significant defect in standard empirical Bayes harmonization (ComBat). We demonstrate that aggressive batch correction can trigger a **"Harmonization-Dominance" failure mode**, where features requiring extreme mathematical rescaling ($D_g > \tau_0$) are artificially inflated to the point of dominating predictive models.
+Our analysis provides an empirical characterization of a significant failure mode in standard empirical Bayes harmonization (ComBat). We demonstrate that aggressive batch correction can trigger a **"Harmonization-Dominance"** state, where features requiring extreme mathematical rescaling ($D_g > \tau_0$) are artificially inflated to the point of dominating predictive models. While the risks of batch-effect over-correction are acknowledged in general bioinformatics [18], the specific impact of feature-level distortion on predictive model stability remains under-characterized.
 
 **The Collision Mechanism**: In the $60 \to 61$ direction, rigid static filters revealed that high-distortion transcripts (e.g., *NDUFA1*, *NDUFS5*) were essentially "colliding" with technical noise. 
 
 **The Error**: While standard pipelines [7] assume these shifts are purely technical, our BDP-FS framework proves they often mask critical biological signal. 
 
-**Systemic Implications**: This defect explains why cross-cohort models often fail to generalize despite high training-set AUROCs. The model is not learning Alzheimer's pathology; it is learning the "mathematical rescue" applied to noisy features.
+**Systemic Implications**: This failure mode explains why cross-cohort models often fail to generalize despite high training-set AUROCs. The model is not learning Alzheimer's pathology; it is learning the "mathematical rescue" applied to noisy features.
 
-### 5.2 Rescuing the "Long-Tail" of Biological Signal
+### 5.2 Rescuing the "Long-Tail" of Biological Signal (Agora Preservation)
 
 By transitioning to Adaptive GMM-regularized soft-weighting, we successfully mitigate this defect. Unlike the "binary" filters used in legacy pipelines, BDP-FS v2 treats distortion as a continuous penalty.
 
-**The Result**: This mechanism successfully rescued **164 AMP-AD Agora biological targets**. These targets were established by **external NIH-funded consensus teams** [3] and serve as an independent biological ground truth, neutralizing claims of circular feature selection.
+**The Result**: This mechanism successfully rescued **164 AMP-AD Agora biological targets** in high-noise transfers. These targets serve as an independent biological ground truth, established by external NIH-funded consensus teams [3].
 
-**The "Agora Shield"**: These genes, including *APP* and *MAPT*, are frequently situated in the "long-tail" of high-distortion distributions. 
+**The "Agora Preservation" Mechanism**: These genes, including *APP* and *MAPT*, are frequently situated in the "long-tail" of high-distortion distributions. 
 
 **Performance Lift**: The **+0.005 AUROC lift** in the high-noise direction is not a mere numerical gain, but the result of unmasking these "rescued" biological relations. Matching the baseline performance while using pathology-grounded features represents a more stable and clinically honest model than one driven by technical artifacts.
 
@@ -181,20 +179,7 @@ By transitioning to Adaptive GMM-regularized soft-weighting, we successfully mit
 
 A secondary cross-platform evaluation on GSE97760 (Agilent, $N=19$, $N_{test}=6$) produced uniformly perfect AUROCs (1.0) across all arms. Permutation-null analysis revealed this to be a statistical artifact: with a feature-to-sample ratio of 77:1, logistic regression trivially finds a separating hyperplane, and random label permutations achieve perfect classification 26% of the time (**$p=0.26$**).
 
-This result serves as a cautionary demonstration that micro-cohort holdouts with $N_{test} < 50$ cannot support claims of predictive generalizability without exhaustive null calibration. We propose that **Permutation-Null Calibration** be a mandatory requirement for any transcriptomic study utilizing validation cohorts with $N < 50$. Any paper reporting near-perfect AUROCs on small clinical transcriptomic holdouts without accompanying permutation-null distributions should be interpreted with caution.
-
-### 5.4 Recommendations
-
-Based on these findings, we recommend that cross-cohort transcriptomic evaluation studies:
-
-1. Validate on cohorts with $N_{test} \geq 50$ to ensure adequate statistical power.
-2. Report full permutation-null distributions alongside primary metrics.
-3. Apply harmonization-aware feature selection (such as BDP-FS) as an initial conservative filter, but evaluate its impact bidirectionally to distinguish technical artifact removal from biological signal suppression.
-4. Use the directional response to BDP-FS as a diagnostic for whether inter-cohort differences are primarily technical or biological in origin.
-
-### 5.5 The Power vs. Variance Trade-off in Pooled Training
-
-The observed performance gains of the `source_plus_target_raw` arm over the `target_only` arm (Section 4) may initially seem counter-intuitive given the presence of inter-platform batch effects. However, this phenomenon can be explained by the **Power-Variance Trade-off**: when two cohorts share the same platform architecture (e.g., Illumina HumanHT-12), the biological signal (AD vs. CTL) remains relatively consistent. In such cases, the gains in statistical power achieved by increasing the total sample size ($N$) through pooling can outweigh the non-systematic platform noise. This suggests that for homogenous platform transfers, larger pooled datasets may be superior to smaller, perfectly corrected ones, highlighting the importance of sample scale in blood-based diagnostic development.
+This result serves as a cautionary demonstration that micro-cohort holdouts with $N_{test} < 50$ cannot support claims of predictive generalizability without exhaustive null calibration. We propose that **Permutation-Null Calibration** be a mandatory requirement for any transcriptomic study utilizing validation cohorts with $N < 50$.
 
 ## 6. Limitations
 
@@ -265,22 +250,22 @@ python src/train/run_open_phaseA_benchmark.py
 
 ### Step 3: Forensic Validation
 
-Run the following check to verify the 1,000-permutation rigor and Agora Shield preservation:
+Run the following check to verify the 1,000-permutation rigor and Agora target preservation:
 
 ```python
 import json
 from pathlib import Path
 
 stats = json.loads(Path('outputs/stats/open_phaseA_stats.json').read_text())
-# Target the GSE63061 to GSE63060 direction for primary Adaptive verification
-n_perm = stats['adaptive_bdpfs__GSE63061_to_GSE63060_top1000']['null_perm_n']
-preserved = stats['adaptive_bdpfs__GSE63061_to_GSE63060_top1000']['agora_genes_preserved_by_adaptive_weighting']
+# Target the GSE63060 to GSE63061 direction for primary Adaptive verification (164 targets)
+n_perm = stats['adaptive_bdpfs__GSE63060_to_GSE63061_top200']['null_perm_n']
+preserved = stats['adaptive_bdpfs__GSE63060_to_GSE63061_top200']['agora_genes_preserved_by_adaptive_weighting']
 
 print(f"STATISTICAL_RIGOR: {n_perm} permutations")
 print(f"BIOLOGICAL_TARGET_SAFETY: {preserved} targets preserved")
 
 assert n_perm == 1000
-assert preserved == 148
+assert preserved == 164
 print("VERIFICATION_SUCCESSFUL")
 ```
 
@@ -289,7 +274,7 @@ print("VERIFICATION_SUCCESSFUL")
 | Criterion         | Metric          | Threshold          |
 | :---------------- | :-------------- | :----------------- |
 | Statistical Rigor | `null_perm_n`   | == 1,000           |
-| Biological Safety | `agora_preserved` | == 148             |
+| Biological Safety | `agora_preserved` | == 164             |
 | Repository Sync   | Git Tag         | `v1.0.0-phaseA-v9` |
 
 ---
