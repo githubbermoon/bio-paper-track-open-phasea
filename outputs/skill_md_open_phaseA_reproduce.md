@@ -4,7 +4,7 @@ description: Reproduce the final leakage-safe AD cross-cohort benchmark (v7 pack
 allowed-tools: Bash(python *), Bash(pip *), WebFetch
 ---
 
-# Reproduction (final v7 package)
+# Reproduction (final v7 package, submission freeze)
 
 ## 0) Clone
 ```bash
@@ -93,4 +93,28 @@ assert 'generated_outputs' in manifest and len(manifest['generated_outputs']) >=
 
 print('VALIDATION_OK')
 PY
+```
+
+## 6) Clean-room verification (recommended for submission)
+```bash
+python -m venv test_env
+source test_env/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python src/ingest/fetch_ampad_open_subset.py
+python src/train/run_open_phaseA_benchmark.py
+python src/eval/compute_open_phaseA_bootstrap.py
+python src/eval/model_family_sensitivity.py
+python src/eval/null_stability_check.py
+deactivate
+rm -rf test_env
+```
+
+## 7) Freeze and release tagging
+```bash
+git add .
+git commit -m "freeze: v7 reproducibility package"
+git push
+git tag -a v1.0.0-phaseA -m "v7 manuscript-aligned freeze"
+git push origin v1.0.0-phaseA
 ```
